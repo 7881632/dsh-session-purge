@@ -219,6 +219,11 @@ const readPanel = () => page.evaluate(() => {
         notice: pick('.sd-bin-notice'),
         error: pick('.sd-bin-error'),
         confirm: pick('.sd-bin-confirm-text'),
+        // The inline confirmation row: its affirmative button says "确定" — the
+        // row text carries the consequence, so a second "真实删除" would only
+        // repeat the button that opened the row.
+        confirmButton: button('.sd-bin-confirm .sd-dlg-btn-danger'),
+        confirmCancel: button('.sd-bin-confirm .sd-dlg-btn'),
         footer: pick('.sd-bin-footer'),
         more: pick('.sd-bin-more'),
         emptyAll: button('.sd-bin-link'),
@@ -310,6 +315,9 @@ check('restoring reports the outcome', light.states.restored.notice !== null
 check('the confirm strip states the consequence',
     light.states.confirm.confirm !== null && light.states.confirm.confirm.text.includes('永久删除全部 3 个会话'),
     String(light.states.confirm.confirm?.text));
+check('its affirmative button says "确定" while cancel says "取消"',
+    light.states.confirm.confirmButton?.text === '确定' && light.states.confirm.confirmCancel?.text === '取消',
+    JSON.stringify({ confirm: light.states.confirm.confirmButton?.text, cancel: light.states.confirm.confirmCancel?.text }));
 check('the failed state offers a retry', light.states.failed.status !== null
     && light.states.failed.status.text.includes('读取回收站失败'), String(light.states.failed.status?.text));
 check('a long bin shows one page plus "load more"',

@@ -51,6 +51,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.expiring": "将在下次自动清理时删除",
 			"bin.restore": "复原",
 			"bin.purge": "真实删除",
+			// The affirmative button of the inline confirmation row (the row text
+			// already states the consequence, so the button only says "yes").
+			"bin.confirm": "确定",
 			"bin.purging": "删除中…",
 			"bin.restored": "已复原「{name}」",
 			"bin.restoreHint": "已复原，刷新页面（Ctrl+Shift+R）后可见",
@@ -135,6 +138,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.expiring": "Will be removed by the next auto-clean",
 			"bin.restore": "Restore",
 			"bin.purge": "Delete permanently",
+			"bin.confirm": "Confirm",
 			"bin.purging": "Deleting…",
 			"bin.restored": "Restored “{name}”",
 			"bin.restoreHint": "Restored — refresh the page (Ctrl+Shift+R) to see it",
@@ -1401,7 +1405,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		children.push(React.createElement("button", {
 			key: "yes", type: "button", className: "sd-dlg-btn sd-dlg-btn-danger",
 			disabled: confirm.busy === true, onClick: confirmBinAction
-		}, confirm.busy === true ? tr("row.working") : tr("bin.purge")));
+		}, confirm.busy === true ? tr("row.working") : tr("bin.confirm")));
 		return React.createElement("div", { key: "confirm", className: "sd-bin-confirm" }, children);
 	}
 

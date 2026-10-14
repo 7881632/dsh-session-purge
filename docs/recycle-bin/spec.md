@@ -122,8 +122,11 @@
 
 - 复原成功：该行从列表移除并播放 120ms 高度收起；列表为空时切空态；**随即刷新侧边栏会话列表**（见 5.4）。
 - 复原失败（目标已存在 / 存储错误）：行内红字 + `重试`。
-- 真实删除：二次确认弹窗（标题 `永久删除会话`，正文 `将永久删除「X」及其全部磁盘记录，不可恢复。`，危险按钮 `永久删除`）。
-- 清空回收站：确认弹窗显示 `将永久删除 N 个会话（共 128.3 MB），不可恢复。`；按钮文案 `永久删除 N 个会话`。
+- 真实删除（单条）：点行内 `真实删除` 后，**该行下方展开一条内联确认行**（不再叠一层弹窗）：
+  文案 `永久删除「X」？不可恢复。`，右侧两个按钮 `取消` / **`确定`**——
+  确认按钮只说"确定"，因为后果已经写在确认行里；再叫一次「真实删除」等于把刚点的按钮重复一遍。
+- 清空回收站：同样用内联确认行，文案 `永久删除全部 N 个会话（共 128.3 MB）？不可恢复。`，
+  按钮 `取消` / `确定`。
 - 面板打开期间如果发生自动清理，列表静默刷新并出现一行提示 `已自动清理 2 个过期会话`。
 
 ### 5.3 「移入回收站」流程（会话行菜单）
@@ -228,6 +231,7 @@
 | `bin.expiring` | 将在下次自动清理时删除 | Will be removed by the next auto-clean |
 | `bin.restore` | 复原 | Restore |
 | `bin.purge` | 真实删除 | Delete permanently |
+| `bin.confirm` | 确定 | Confirm |
 | `bin.restored` | 已复原「{name}」 | Restored “{name}” |
 | `bin.restoreRefreshHint` | 已复原，刷新页面（Ctrl+Shift+R）后可见 | Restored — refresh the page (Ctrl+Shift+R) to see it |
 | `bin.restoreConflict` | 该会话已存在，无法复原 | That session already exists and cannot be restored |

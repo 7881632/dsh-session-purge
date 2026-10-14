@@ -516,6 +516,11 @@ const purgeConfirm = await page.evaluate(() =>
     document.querySelector('.sd-bin-confirm-text')?.textContent ?? null);
 check('permanent delete asks for confirmation and says it is final',
     purgeConfirm !== null && /不可恢复|cannot be undone/.test(purgeConfirm), String(purgeConfirm));
+const purgeConfirmButton = await page.evaluate(() =>
+    document.querySelector('.sd-bin-confirm .sd-dlg-btn-danger')?.textContent ?? null);
+check('the confirmation button affirms with "确定", not a second "真实删除"',
+    purgeConfirmButton === '确定', String(purgeConfirmButton));
+await page.screenshot({ path: join(shots, '09-purge-confirm.png') });
 await page.evaluate(() => document.querySelector('.sd-bin-confirm .sd-dlg-btn-danger')?.click());
 await page.waitForTimeout(1500);
 check('permanent delete removes the entry from the host', (await binEntryCount()) === 0);
@@ -533,6 +538,9 @@ const emptyConfirm = await page.evaluate(() =>
 check('emptying states the count before doing it',
     emptyConfirm !== null && /永久删除全部 1 个会话|Permanently delete all 1 sessions/.test(emptyConfirm),
     String(emptyConfirm));
+const emptyConfirmButton = await page.evaluate(() =>
+    document.querySelector('.sd-bin-confirm .sd-dlg-btn-danger')?.textContent ?? null);
+check('emptying also affirms with "确定"', emptyConfirmButton === '确定', String(emptyConfirmButton));
 await page.evaluate(() => document.querySelector('.sd-bin-confirm .sd-dlg-btn-danger')?.click());
 await page.waitForTimeout(1800);
 check('emptying clears the bin on the host', (await binEntryCount()) === 0);
