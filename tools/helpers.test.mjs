@@ -530,10 +530,15 @@ test('client dictionaries stay in sync (a missing key renders as the raw key)', 
 /** The dialog's JSX-ish render body, which is where the variant classes are chosen. */
 const dialogRender = clientSrc.slice(clientSrc.indexOf('var succeeded ='), clientSrc.indexOf('// ── module state bound in apply()'));
 
-test('a completed delete switches the dialog to its success variant', () => {
+test('a completed move switches the dialog to its success variant', () => {
     assert.match(dialogRender, /succeeded\s*=\s*done !== null/u);
     assert.match(dialogRender, /succeeded \? "sd-dlg sd-dlg-success" : "sd-dlg"/u);
-    assert.match(dialogRender, /succeeded \? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-danger"/u);
+    // The terminal button: green once it worked, amber for the queued /
+    // nothing-located outcomes (neither is a success nor a destructive confirm).
+    assert.match(dialogRender, /succeeded \? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-warn"/u);
+    // Moving a session to the bin is reversible, so the confirming button is
+    // neutral — the destructive colour now belongs to the bin's own action.
+    assert.match(dialogRender, /className: "sd-dlg-btn sd-dlg-btn-primary"/u);
 });
 
 test('the success variant is green and the danger variant stays red', () => {
@@ -548,7 +553,7 @@ test('the success variant is green and the danger variant stays red', () => {
 
 test('the success heading uses the tick icon and its own title key', () => {
     assert.match(dialogRender, /__html: succeeded \? OK_ICON : ICON/u);
-    assert.match(dialogRender, /titleKey = succeeded \? "dialog\.doneTitle" : "dialog\.title"/u);
+    assert.match(dialogRender, /titleKey = succeeded \? "dialog\.trash\.doneTitle" : "dialog\.trash\.title"/u);
     // OK_ICON must be a distinct drawing, not a recoloured bin.
     const ok = clientSrc.match(/var OK_ICON = '([^']+)'/u);
     assert.notEqual(ok, null);
@@ -592,28 +597,28 @@ test('tr follows a locale service that is not active yet at mount time', () => {
 
     // Mount with NO locale service at all, the way an early entry sees it.
     clientModule.__testMountLocale({ get: () => undefined });
-    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    assert.equal(MENU.tr('menu.trashSession'), '移入回收站');
 
     // The locale row activates after mount; a later render must pick it up.
     clientModule.__testMountLocale({ get: (name) => (name === 'locale' ? { getLocale: () => ({ active: 'en' }) } : undefined) });
-    assert.equal(MENU.tr('menu.deleteSession'), 'Delete session');
-    assert.equal(MENU.tr('error.live'), 'Session is running — stop it (or let it finish), then delete');
+    assert.equal(MENU.tr('menu.trashSession'), 'Move to recycle bin');
+    assert.equal(MENU.tr('error.live'), 'Session is running — stop it (or let it finish), then retry');
     // Interpolation and the unknown-key fallback still work in the en path.
-    assert.equal(MENU.tr('dialog.done', { name: 'Alpha' }), 'Deleted session “Alpha”.');
+    assert.equal(MENU.tr('dialog.trash.done', { name: 'Alpha' }), 'Moved “Alpha” to the recycle bin.');
     assert.equal(MENU.tr('no.such.key'), 'no.such.key');
 });
 
 test('tr tolerates a broken or missing locale service', () => {
     // A throwing accessor must not break a dialog render.
     clientModule.__testMountLocale({ get() { throw new Error('fiber disposed'); } });
-    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    assert.equal(MENU.tr('menu.trashSession'), '移入回收站');
     // A locale service without getLocale(), and a snapshot with no `active`.
     clientModule.__testMountLocale({ get: () => ({}) });
-    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    assert.equal(MENU.tr('menu.trashSession'), '移入回收站');
     clientModule.__testMountLocale({ get: () => ({ getLocale: () => null }) });
-    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    assert.equal(MENU.tr('menu.trashSession'), '移入回收站');
     // No mounting at all is still safe (the fallback path is a dictionary hit).
-    assert.equal(typeof MENU.tr('menu.deleteSession'), 'string');
+    assert.equal(typeof MENU.tr('menu.trashSession'), 'string');
 });
 
 test('the locale lookup is lazy, not a one-shot capture at apply time', () => {

@@ -45,7 +45,7 @@ jobs:
             console.log('manifest ok');
           "
       - name: Regression tests
-        run: node --test tools/helpers.test.mjs
+        run: node --test tools/*.test.mjs
 
   # Same suite on the oldest and newest supported Node lines, so a stdlib
   # behaviour change (fs.rm, path, homedir, test runner) cannot slip through.
@@ -61,4 +61,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Regression tests
-        run: node --test tools/helpers.test.mjs
+        run: node --test tools/*.test.mjs

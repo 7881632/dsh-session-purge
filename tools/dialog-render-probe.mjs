@@ -1,7 +1,7 @@
 /**
- * Render the plugin's REAL dialog component — real React, the plugin's own
+ * Render the plugin's REAL move-to-bin dialog — real React, the plugin's own
  * stylesheet, the shipped DSH theme tokens — and report the computed colours of
- * both the confirmation (danger) and the success report. Exit-gate for the
+ * both the confirmation (neutral) and the success report. Exit-gate for the
  * dialog variants: catches a wrong token, a typo'd class name, or a variant that
  * silently never applies. Complements the static assertions in
  * helpers.test.mjs, which cannot see computed styles.
@@ -69,13 +69,15 @@ writeFileSync(join(dir, 'index.html'), `<!doctype html>
     effect: function (body, label) { effects.push(label); var d = body(); if (typeof d === 'function') return d; return function () {}; }
   });
   window.__effects = effects;
-  var Dialog = loaded.__test.DeleteConfirmDialog;
+  var Dialog = loaded.__test.TrashConfirmDialog;
   var root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(React.createElement('div', null,
     React.createElement(Dialog, {
       key: 'confirm',
       target: { id: 'session-probe', title: '探测会话', cwd: 'D:\\\\some\\\\project' },
-      onClose: function () {}
+      policy: '回收站自动清理：保留 30 天',
+      onClose: function () {},
+      onOpenBin: function () {}
     }),
     React.createElement(Dialog, {
       key: 'success',
@@ -144,11 +146,11 @@ const report = {
     light: { tokens: await readTokens(), dialogs: await readDialogs() },
 };
 
-// The success report only exists once a delete completes, so drive the dialog's
+// The success report only exists once a move completes, so drive the dialog's
 // own confirm handler with a stubbed success reply from the host route.
 await page.evaluate(async () => {
     const realFetch = window.fetch;
-    window.fetch = async () => ({ json: async () => ({ ok: true, mode: 'deleted', name: '探测会话' }) });
+    window.fetch = async () => ({ json: async () => ({ ok: true, mode: 'trashed', name: '探测会话' }) });
     const buttons = [...document.querySelectorAll('.sd-dlg')][0].querySelectorAll('.sd-dlg-actions button');
     buttons[buttons.length - 1].click();
     await new Promise((r) => setTimeout(r, 600));

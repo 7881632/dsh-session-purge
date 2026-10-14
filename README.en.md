@@ -2,12 +2,31 @@
 
 [中文](https://github.com/verdana/dsh-session-purge/blob/main/README.md) | [English](./README.en.md)
 
-Adds **Delete session** to the DeepSeek Harness (DSH) session-row menu, alongside
-Rename / Fork session / Archive session.
+A **recycle bin** for DeepSeek Harness (DSH) session deletion: deleting no longer
+destroys anything — the session is moved, as-is, into the bin, where it can be
+restored at any time or deleted for real. The bin does not grow forever either:
+entries are kept for 30 days by default and then cleaned up automatically.
 
-Upstream's archive only hides a session from the default list — its log stays on
-disk forever. This plugin does the **real thing**: it removes the session's log
-directory from disk, permanently.
+Upstream's "archive" only hides a session from the default list while its log
+stays on disk forever. This plugin is about **deletion**, and it splits deletion
+into two jobs: the reversible part (move to the bin) and reclaiming disk space
+(true delete, or automatic clean-up on a retention schedule).
+
+## What it does
+
+- **Session-row menu**: `⋯` → **Move to recycle bin** (replacing the old
+  unrecoverable "Delete session"), with a confirmation step. A running session is
+  refused.
+- **Sidebar workspace row**: a fourth icon after search / view options / add
+  workspace — the **recycle bin**. It opens a panel listing every deleted session
+  (title, original folder, deletion time, size, session id) where each entry can be
+  **restored** or **deleted permanently**, with **Empty the recycle bin** and the
+  retention policy in the footer.
+- **Settings → Recycle bin**: the auto-clean switch, the retention period
+  (7/30/90/365 days / forever), sweep-on-startup, the sweep interval (1–168 hours),
+  usage stats, **Clean up now** and **Open the recycle bin**.
+- **Defaults**: auto-clean on, 30-day retention, one sweep at startup plus one
+  every 6 hours. Changes take effect immediately — no restart.
 
 ## Install
 
@@ -34,79 +53,125 @@ dsh plugin --profile web remove dsh-session-purge
 
 ## Usage
 
-Hover any session row → click `⋯` → **Delete session** (red) → confirm with
-**Delete** in the dialog. When it finishes, the dialog reports just one line:
-`Deleted session “<name>”.`
+### Move a session to the bin
 
-The menu item, the dialog and its report all follow DSH's interface language:
-this item reads `删除会话` under a Chinese UI, and so does the rest of the copy.
+Hover any session row → click `⋯` → **Move to recycle bin** → confirm. The row
+leaves the list immediately and the entry shows up in the bin. The menu item, the
+dialog, the panel and the settings page all follow DSH's interface language.
 
-The row disappears from the list immediately — no manual refresh.
+### Open the bin
+
+Click the **bin icon** on the sidebar's workspace row. The panel lists every
+deleted session, newest deletion first:
+
+- Each row shows the title (or "Untitled session"), the original working folder,
+  `Deleted 3 days ago`, the size and the session id; entries past their retention
+  window are marked "Will be removed by the next auto-clean".
+- **Restore** moves the directory back exactly where it came from (byte-for-byte);
+  the sidebar row reappears without a page reload.
+- **Delete permanently** removes it after a confirmation, and cannot be undone.
+- **Empty the recycle bin** removes everything after a confirmation that states
+  the entry count and the space involved.
+- More than 50 entries show one page with a **Load more** control.
+
+### Settings
+
+Bottom-left **Settings** → **Recycle bin**:
+
+| Option | Default | Meaning |
+|---|---|---|
+| Auto-clean the recycle bin | on | When off, nothing is deleted automatically — only manual clean-up runs |
+| Retention period | 30 days | 7 / 30 / 90 / 365 days or "Forever"; older entries are permanently deleted by the next sweep |
+| Sweep once at startup | on | Run one retention sweep each time `dsh web` starts |
+| Sweep interval | 6 hours | 1–168 hours; both schedule controls grey out while auto-clean is off |
+| Clean up now | — | Run one retention sweep immediately and report how many entries went |
+| Open the recycle bin | — | Open the bin panel directly |
 
 ## What to know
 
-- **It cannot be undone.** The whole session directory is removed
-  (`~/.dsh/sessions/<workspace>/<session id>/`). You confirm once, and there is no
-  undo after that.
-- **A running session cannot be deleted.** The menu item itself stays clickable,
-  but the dialog's **Delete** button is greyed out with the reason, and the host
-  checks again on its side. Stop the session (or let it finish) and come back.
+- **Deletion is reversible; disk space is not reclaimed immediately.** Moving a
+  session to the bin relocates its directory. The space comes back on a permanent
+  delete, on emptying the bin, or on an automatic sweep.
+- **A running session cannot be moved.** The menu item stays clickable, but the
+  confirming button is disabled with the reason (the host checks again on its
+  side). Stop the session, or let it finish.
+- **A session that happens to be open and idle** is released safely first. If that
+  is not possible at the moment (the runtime is still settling), the move is queued
+  and runs the next time you start `dsh web` (see Troubleshooting to cancel it).
 - **Archived sessions are not in the default list.** Reveal them with the list's
-  View options → **All conversations (show archived)** or **Archived only**. On
-  those rows the menu shows Unarchive session, and the plugin inserts Delete
-  session right below it — so you can delete straight from that view without
-  unarchiving first.
-- **A session that happens to be open and idle**: the plugin releases it safely
-  first, then removes the log. If it cannot be released safely at that moment
-  (the runtime is still settling, say), the deletion is queued and runs the next
-  time you start `dsh web` (to take it back, see `/session-purge/undo` under
-  Troubleshooting).
-- **Only directories it can prove are session logs get deleted.** The plugin
-  deletes only what the session persistence layer locates and whose filename is
+  View options → **All conversations (show archived)** or **Archived only**; on
+  those rows the menu shows Unarchive session, and the plugin inserts Move to
+  recycle bin right below it. A restored session returns to its original workspace
+  and keeps its archived state.
+- **Only directories it can prove are session logs get moved.** The plugin acts
+  only on what the session persistence layer locates and whose filename is
   genuinely a session log (`session[.vN].jsonl[.zstd]`). It would rather refuse
-  than remove the wrong directory.
+  than touch the wrong directory.
+- **Where the bin lives**: `~/.dsh/session-purge/trash/`, one entry per deleted
+  session — the moved session directory plus a sidecar metadata file recording the
+  original path, deletion time, size and archive state, which is what makes a
+  restore byte-exact.
+- **Settings live in the plugin's own file**: `~/.dsh/session-purge/settings.json`
+  (atomic writes; a corrupt file falls back to defaults and is kept as `.bak`). It
+  deliberately does not use DSH's plugin-config system, which keeps this plugin
+  zero-dependency and build-free.
 
 ## Troubleshooting
 
-- No **Delete session** item? Check that the plugin is installed, that `dsh web`
-  was restarted, and that the page was reloaded (Ctrl+Shift+R). As long as the
-  menu shows Rename / Fork session / Archive session (Unarchive session on an
-  archived row), the plugin should insert Delete session right below that row.
-- To find out **whether a session is really gone**, use `/session-purge/state`:
+- **No "Move to recycle bin" item or bin icon?** Check that the plugin is
+  installed, that `dsh web` was restarted, and that the page was reloaded
+  (Ctrl+Shift+R). As long as the menu shows Rename / Fork session / Archive
+  session (Unarchive session on an archived row), the plugin should insert its item
+  right below that row; the icon sits immediately after **Add workspace**.
+- **To see the actual state**:
 
   ```sh
-  curl http://127.0.0.1:<port>/session-purge/state
+  curl http://127.0.0.1:<port>/session-purge/state     # disk truth + bin summary + settings
+  curl http://127.0.0.1:<port>/session-purge/trash     # bin entries
+  curl http://127.0.0.1:<port>/session-purge/settings  # settings and stats
   ```
 
-  It lists the sessions the persistence layer currently knows about (id / working
-  directory / size / whether it is in memory / whether it is archived), plus
-  `held` (in memory) and `pending` (queued for deletion on restart). Note that
-  `title` is **always null**: a session title is an *event* in the log, not part
-  of the session metadata, so this endpoint cannot see one. The title shown in
-  the UI is read off the session row by the plugin.
-- Changed your mind mid-way? A session that is only queued for
-  "delete on restart" can still be pulled back before the next `dsh web` start:
+  In `state`, `sessions[].title` is **always null**: a title is an *event* in the
+  log, not part of the session metadata. The UI reads titles off the session row
+  and records them with the entry when it moves one into the bin.
+- **Changed your mind** about a session that is only queued for "move to the bin on
+  restart"? Pull it back before the next `dsh web` start:
 
   ```sh
   curl -X POST http://127.0.0.1:<port>/session-purge/undo \
     -H 'content-type: application/json' -d '{"sessionId":"<session id>"}'
   ```
 
-  Take the session id from `pending` in `/session-purge/state`. This only cancels
-  the queue; a session already deleted (`mode: "deleted"`) cannot be brought back.
+  Take the id from `pending` in `/session-purge/state`. This only cancels the
+  queue; a session already in the bin should be **Restore**d from the panel, and a
+  permanently deleted one cannot come back.
+- **Change settings without the UI**:
+
+  ```sh
+  curl -X POST http://127.0.0.1:<port>/session-purge/settings \
+    -H 'content-type: application/json' -d '{"autoClean":false,"retentionDays":90}'
+  curl -X POST http://127.0.0.1:<port>/session-purge/sweep
+  ```
+
 - Verbose logs: start `dsh web` with `DSH_PURGE_DEBUG=1`.
 
 ## Requirements
 
-- DSH, with a working `dsh web`. **Verified against 0.1.5-rc.3, 0.1.7-rc.2 and
-  0.2.0-rc.2.**
+- DSH, with a working `dsh web`. **Fully verified live on 0.2.0-rc.2** (bin panel,
+  settings page, auto-clean and the end-to-end flows). The menu and sidebar
+  injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection and are expected
+  to work, but were not re-verified in this round; 0.1.5-rc.3 has no settings
+  extension point, so the **settings page is unavailable there** — use the HTTP
+  routes above instead.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.
 
 ## Development
 
-Development, testing and release flow:
-[DEVELOPING.md](https://github.com/verdana/dsh-session-purge/blob/main/DEVELOPING.md).
+Code layout, testing and release flow:
+[DEVELOPING.md](https://github.com/verdana/dsh-session-purge/blob/main/DEVELOPING.md);
+the product spec and the implementation record (including known limits and future
+enhancements): [docs/recycle-bin/](./docs/recycle-bin/).
 
 MIT License.

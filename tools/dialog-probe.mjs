@@ -101,7 +101,10 @@ if (anchorCount === 0) {
         await page.waitForTimeout(1200);
         report.steps.push({ step: 'after-menu-click', dialogs: await readDialogs() });
 
-        const confirm = page.locator('.sd-dlg button.sd-dlg-btn-danger').last();
+        // Moving a session to the recycle bin is reversible, so its confirming
+        // button is the neutral variant (the danger colour now lives on the
+        // bin's own "delete permanently" action).
+        const confirm = page.locator('.sd-dlg button.sd-dlg-btn-primary').last();
         await confirm.click();
         await page.waitForTimeout(2500);
         report.steps.push({ step: 'after-confirm', dialogs: await readDialogs(), menuItems: await page.locator('[data-sd-menu-item]').count() });
