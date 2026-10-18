@@ -22,7 +22,8 @@ into two jobs: the reversible part (move to the bin) and reclaiming disk space
   (title, original folder, deletion time, size, session id) where each entry can be
   **restored** or **deleted permanently**, with **Empty the recycle bin** and the
   retention policy in the footer.
-- **Settings → Recycle bin**: the auto-clean switch, the retention period
+- **Account menu → Settings → Recycle bin** (since DSH 0.2.1; older shells show a
+  sidebar **Settings** button): the auto-clean switch, the retention period
   (7/30/90/365 days / forever), sweep-on-startup, the sweep interval (1–168 hours),
   usage stats, **Clean up now** and **Open the recycle bin**.
 - **Defaults**: auto-clean on, 30-day retention, one sweep at startup plus one
@@ -76,7 +77,8 @@ deleted session, newest deletion first:
 
 ### Settings
 
-Bottom-left **Settings** → **Recycle bin**:
+Bottom-left **account menu → Settings → Recycle bin** (since DSH 0.2.1; older shells
+show a sidebar **Settings** button instead):
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -99,10 +101,11 @@ Bottom-left **Settings** → **Recycle bin**:
   is not possible at the moment (the runtime is still settling), the move is queued
   and runs the next time you start `dsh web` (see Troubleshooting to cancel it).
 - **Archived sessions are not in the default list.** Reveal them with the list's
-  View options → **All conversations (show archived)** or **Archived only**; on
-  those rows the menu shows Unarchive session, and the plugin inserts Move to
-  recycle bin right below it. A restored session returns to its original workspace
-  and keeps its archived state.
+  View options → **All conversations (show archived)** or **Archived only**. An
+  archived row's menu is Pin / Rename / Fork session / Unarchive session — there is
+  no built-in **Archive session** row for the plugin to anchor to, so it does **not**
+  insert Move to recycle bin on archived rows. Unarchive the session first, then use
+  the `⋯` menu on a normal row.
 - **Only directories it can prove are session logs get moved.** The plugin acts
   only on what the session persistence layer locates and whose filename is
   genuinely a session log (`session[.vN].jsonl[.zstd]`). It would rather refuse
@@ -121,8 +124,13 @@ Bottom-left **Settings** → **Recycle bin**:
 - **No "Move to recycle bin" item or bin icon?** Check that the plugin is
   installed, that `dsh web` was restarted, and that the page was reloaded
   (Ctrl+Shift+R). As long as the menu shows Rename / Fork session / Archive
-  session (Unarchive session on an archived row), the plugin should insert its item
-  right below that row; the icon sits immediately after **Add workspace**.
+  session (plus Copy Session ID after archive on 0.2.1; Unarchive session on an
+  archived row), the plugin should insert its item right below that row; the icon
+  sits immediately after **Add workspace**.
+- **Cannot find the Settings page?** Since 0.2.1 the entry is the bottom-left
+  **account menu → Settings**; there is no separate sidebar Settings button
+  anymore. The bin panel's policy line also opens Settings directly. Older DSH
+  versions still show the sidebar Settings button.
 - **To see the actual state**:
 
   ```sh
@@ -157,12 +165,14 @@ Bottom-left **Settings** → **Recycle bin**:
 
 ## Requirements
 
-- DSH, with a working `dsh web`. **Fully verified live on 0.2.0-rc.2** (bin panel,
-  settings page, auto-clean and the end-to-end flows). The menu and sidebar
-  injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection and are expected
-  to work, but were not re-verified in this round; 0.1.5-rc.3 has no settings
-  extension point, so the **settings page is unavailable there** — use the HTTP
-  routes above instead.
+- DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.2 and
+  0.2.0-rc.2**: the bin panel, the settings page, auto-clean, the full
+  move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
+  account-menu settings entry and the dev repro scripts against the plugin-style
+  JSONL backend. The menu and sidebar injection for 0.1.7-rc.2 / 0.1.5-rc.3 use
+  the same DOM detection and are expected to work, but were not re-verified in
+  this round; 0.1.5-rc.3 has no settings extension point, so the **settings page
+  is unavailable there** — use the HTTP routes above instead.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.

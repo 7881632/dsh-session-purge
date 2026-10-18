@@ -103,18 +103,25 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 
 ## 跨版本兼容
 
-浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是唯一需要随版本走
+浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是主要需要随版本走
 的部分：
 
-| | 0.1.5-rc.3 | 0.1.7-rc.2 及以后 |
-|---|---|---|
-| 菜单项 | 重命名 / 分叉会话 / 归档会话 | 置顶会话 + 上面三项，后面可能还有插件行 |
-| 按钮文本 | 纯标签 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`） |
-| 行组件 props | `onFork` / `onArchive` | 已移除（动作走 slot）；`onOpen` / `onRenameRequest` 仍在 |
+| | 0.1.5-rc.3 | 0.1.7-rc.2 | 0.2.1-rc.2 |
+|---|---|---|---|
+| 菜单项 | 重命名 / 分叉会话 / 归档会话 | 置顶会话 + 上面三项，后面可能还有插件行 | 在 0.1.7 基础上，归档后多了「复制 Session ID / Copy Session ID」 |
+| 按钮文本 | 纯标签 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`） | 同 0.1.7；「复制 Session ID」没有绑定，因而没有键帽 |
+| 行组件 props | `onFork` / `onArchive` | 已移除（动作走 slot）；`onOpen` / `onRenameRequest` 仍在 | 同 0.1.7 |
+| 设置入口 | 侧栏「设置」按钮 | 侧栏「设置」按钮 | **账号菜单（账号菜单 → 设置）**：`settings.launcher` 被账号菜单占用，不再有独立的「设置」按钮 |
 
 插件按「内置三项作为有序子序列」识别菜单（不要求恰好三项），按 `aria-hidden` 过滤
-键帽，把「删除会话」插在「归档会话」之后。多出来的置顶行和插件行都不影响它。上游再
-改菜单形状时，`tools/helpers.test.mjs` 是最先该失败的地方。
+键帽，把「删除会话」插在「归档会话」之后。多出来的置顶行、插件行和 0.2.1 的
+「复制 Session ID」都不影响它。上游再改菜单形状时，`tools/helpers.test.mjs` 是最先
+该失败的地方；改菜单识别逻辑时**必须同步更新那里的 fixture**。
+
+设置入口同理：`openSettingsFromBin()` 先找 ≤0.2.0 的「设置」按钮，找不到再走
+0.2.1 的账号菜单两步路径（点开账号菜单，再点其中的「设置」菜单项）；两条都不存在时
+只显示提示文案，不会产生死点击。改这段逻辑时同步改 `tools/client-bin.test.mjs` 的
+两个 pure picker 用例。
 
 ### 依赖的上游内部面（无 API 保证）
 
@@ -127,14 +134,15 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 | `agents.store` / `detachEntered`、`sessions.store` / `detachEntered` | TS `private` | 降级 `held` → 排进重启后删除队列 |
 | `agent.phase.kind` | TS `private`，**不在公开 `Agent` 接口上** | 无法区分 idle / maintenance |
 | `agent.scope.dispose()` | 类字段 public，不在 `Agent` 接口上 | 走不到安全释放 → 降级队列 |
-| `ctx.get('dshHomePath')` | 值是**函数**，不是字符串 | 探测永不命中（见下） |
+| `ctx.get('dshHomePath')` | 值是**函数**；0.5.1 起取出后调用（见下） | 旧版探测不命中，家目录回退 `$DSH_HOME` → `~/.dsh` |
 
-刻意保留的两处取舍：
+刻意保留的取舍：
 
-- **`dshHomePath` 探测不会命中**：它是函数，`typeof === 'string'` 必然不成立，家目录
-  于是按 `$DSH_HOME` → `~/.dsh` 解析。**harness home 取默认值或由 `DSH_HOME` 指定时
-  结果完全一致**；只有「显式配置路径」把 home 挪走时，重启后删除队列才会写到错位置
-  （立即删除不受影响）。
+- **`dshHomePath` 探测（0.5.1 已修）**：上游提供的是函数 `dshHomePath(...segments)`，
+  不是字符串。`resolveHome()` 现在经 `ctx.get('dshHomePath')` 取出并调用，因此
+  「显式配置路径把 home 挪走」时也能把回收站与重启后队列写到同一个 home。为兼容旧
+  上下文/测试桩（把 home 作为字符串属性暴露），字符串属性读取仍在，但包在 try/catch
+  里——真实 Cordis 在 fiber 未声明 inject 时该属性读取会抛。
 - **`detachEntered` 绕过 `enter()` 的 announce 延迟**：直接调私有 `detachEntered` 会
   跳过「创建派发未结束时延后移除」的保护，agent 侧在 `!entry.announced` 时也不发
   `agent/disposed`。所以这条路**只对严格 idle 的会话**开放（`agent.status` +

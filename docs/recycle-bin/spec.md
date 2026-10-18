@@ -4,8 +4,8 @@
 |---|---|
 | 状态 | 定稿草案（可执行、可验收） |
 | 归属插件 | `dsh-session-purge`（npm 包名不变，功能从「永久删除」升级为「回收站」） |
-| 目标版本 | `0.5.0`（相对 `0.4.5` 是行为变更：删除 → 移入回收站） |
-| 目标 DSH | 主目标 `0.2.0-rc.2`；`0.1.7-rc.2` 尽力兼容；`0.1.5-rc.3` 仅保留降级路径 |
+| 目标版本 | `0.5.0`（相对 `0.4.5` 是行为变更：删除 → 移入回收站）；`0.5.1` 为 DSH 0.2.1 兼容修复，功能规格不变 |
+| 目标 DSH | 主目标 `0.2.1-rc.2`；`0.2.0-rc.2` 同为实机验证基线；`0.1.7-rc.2` 尽力兼容；`0.1.5-rc.3` 仅保留降级路径 |
 | 技术设计 | 见 [design.md](./design.md) |
 
 ---
@@ -263,7 +263,7 @@
 | `settings.sweepIntervalHint` | 1–168 小时；改完立即生效，无需重启。 | 1–168 hours; takes effect immediately, no restart. |
 | `settings.never` | 从未 | never |
 | `settings.unavailable` | 暂时读不到回收站设置，请重试 | The recycle-bin settings are temporarily unavailable — retry |
-| `bin.settingsHint` | 请从侧边栏「设置 → 回收站」打开设置 | Open Settings → Recycle bin from the sidebar to configure it |
+| `bin.settingsHint` | 打开左下角账号菜单 → 设置 → 回收站 | Open the account menu (bottom left) → Settings → Recycle bin |
 
 ## 9. 验收标准
 
@@ -364,4 +364,5 @@
 | 同一 home 起第二个 `dsh web` | 只有进程内串行，没有跨进程锁 | 设计文档 §4.6 已声明为尽力而为；两进程同时操作同一条目是未定义行为 |
 | `/session-purge/state` 的 `entryInjected` | 未实现（客户端没有上报锚点是否命中） | 纯诊断字段；侧边栏图标缺失时现在只能靠肉眼看 |
 | 角标 / 撤销 toast / 批量操作 / 容量上限 / 筛选框 | 未实现，见 §11 | 都是 P2 增强，不影响主流程闭环 |
+| 归档行菜单 | 归档行没有「归档会话」内置项，菜单序列识别不会注入「移入回收站」 | 先「取消归档」，再在普通会话行上移入回收站；README「需要知道的」已写明 |
 | 0.1.7-rc.2 / 0.1.5-rc.3 | 沿用同一套 DOM 识别，这一轮没有重新实机验证；0.1.5 无设置扩展点 | 设置页在 0.1.5 上不可用，改用 HTTP 路由；README「环境要求」已写明 |
