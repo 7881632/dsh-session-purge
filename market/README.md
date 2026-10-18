@@ -119,7 +119,8 @@ git push -u origin add-verdana-dsh-session-purge
 ## 5. 合并之后（可选加分项）
 
 - **截图**：在 `package.json` 旁放 `screenshots.json`（1–8 张、相对路径、不能含 `..`、不能以 `/` 开头），市场详情页会按你的顺序展示，之后改图只需推自己的仓库。目前仓库没有图片，需要先截图。
-- **tarball**：**暂时不填，原因是查过的事实**——tag `v0.5.1` 已存在，但这个仓库的 GitHub Actions **一次都没运行过**（`/actions/runs` 返回 0 条），所以没有任何 Release，`releases/latest/download/...` 现在必然 404。另外本插件零依赖、无构建步骤，源码安装本来就不需要 `allowBuilds` 授权，`tarball:` 的收益接近零。
+- **tarball**：**暂时不填，原因是查过的事实**——tag `v0.5.1` 已存在，但这个仓库的 GitHub Actions **一次都没运行过**（`/actions/runs` 返回 0 条，含推送后的复查），所以没有任何 Release，`releases/latest/download/...` 现在必然 404。另外本插件零依赖、无构建步骤，源码安装本来就不需要 `allowBuilds` 授权，`tarball:` 的收益接近零。
+  本地已验证产物本身没问题：`npm pack` 得到 `dsh-session-purge-0.5.1.tgz`，7 个文件（LICENSE、client/client.js、lib/index.js、package.json、两个 README、cordis.patch.yml），`market/` 没有进包，且文件名符合 [release.yml](.github/workflows/release.yml) 里 `mv dsh-session-purge-*.tgz dsh-session-purge.tgz` 的规则——**缺的只是 Actions 跑起来**。
   真想要的话按这个顺序：Settings → Actions 确认已启用 → 发版 `npm run release -- --bump patch --publish`（脚本会**本地**打 tag 并提示推送命令，它自己不 push）→ `git push && git push origin v0.5.2` → workflow 生成资产（[release.yml](.github/workflows/release.yml) 已把文件名固定成不带版本号的 `dsh-session-purge.tgz`）→ 再把
   `tarball: https://github.com/verdana/dsh-session-purge/releases/latest/download/dsh-session-purge.tgz` 加进条目。资产名不带版本号，换了 release 也不会 404。
 - **`peerDependencies`**：`client/client.js` 运行时依赖宿主提供的 `@deepseek-ai/dsh-client-ui-primitives`，规范建议把官方包声明为 `peerDependencies` 而非 `dependencies`。当前 `package.json` 里两者都没有（零依赖是设计的一部分），不加也能收录；如果要加，注意预发布范围的坑——`>=0.0.1-rc.1 <0.2.0` 这类写法会静默排除 `0.1.0-rc.x`，必须写成 `>=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.2.0-0` 的形式。
