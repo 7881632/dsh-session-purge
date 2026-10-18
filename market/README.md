@@ -22,11 +22,11 @@
 | `package.json` 声明 `dsh.bundle` | [package.json:15](package.json#L15) → `"patch": "./cordis.patch.yml"`；[cordis.patch.yml](cordis.patch.yml) 插入 `id: session-purge` / `name: dsh-session-purge` | 通过 |
 | 真实可用代码（非占位/纯 README） | [lib/index.js](lib/index.js)（回收站、复原、清空、保留期扫描）+ [client/client.js](client/client.js)（菜单项、回收站面板、设置页），`tools/*.test.mjs` 测试，[.github/workflows/ci.yml](.github/workflows/ci.yml) 跑 Windows/macOS/Linux 与 Node 22/24 | 通过 |
 | 仓库创建满 1 天 | 创建于 2026-09-21，最后推送 2026-10-18 | 通过 |
-| 仓库带 `dsh-plugin` topic | **当前 `topics: []`**（fork 不继承上游 topic） | **需手动加** |
-| 描述属实、无营销词 | `package.json` 已在本次提交里改成回收站口径；**GitHub About 仍是旧文案，需网页手改** | **About 待改** |
+| 仓库带 `dsh-plugin` topic | 已加：`["deepseek-harness","dsh","dsh-plugin"]`（fork 不继承上游，需手动加，已补） | 通过 |
+| 描述属实、无营销词 | About、`package.json`、npm 0.5.2 三处口径一致，均为回收站模型 | 通过 |
 | 一个 PR 只加 1 个文件、≤3 条、不手改两个 README | 本方案只新增 1 个 yml | 通过 |
 | npm 包的 `repository` 指回本仓库 | npm 上的 `dsh-session-purge@0.5.1`：`repository = git+https://github.com/verdana/dsh-session-purge.git` | 通过（无需在 yml 里写 `npm:`） |
-| `tarball:` 字段 | tag `v0.5.1` 已存在，但 **Actions 从未运行过**（`/actions/runs` 为 0），因此没有任何 Release 资产；且当前版本已发布、无构建步骤 | 不填 |
+| `tarball:` 字段 | Release v0.5.2 由 Actions 生成，资产 `dsh-session-purge.tgz`（55,646 B），`latest/download` 有效，条目已填 | 已启用 |
 | 截图 | 仓库内无图片、无 `screenshots.json` | 可选，暂不声明 |
 | fork 身份 | 本仓库是 `Yicijiuhaobala/dsh-session-delete` 的 fork；规范明确「fork 维护得更好或确实做了新东西时可收录」 | 可投，但**必须在 PR 里主动说明**（`market/PR.md` 已写） |
 
@@ -34,33 +34,23 @@
 
 ---
 
-## 2. 仓库侧事项（描述已修，剩下 2 处待手动）
+## 2. 仓库侧事项：已全部完成（2026-10-18 复核）
 
-### 2.1 加 topic（硬性要求，缺了会被打回）
+| 事项 | 状态 | 复核证据 |
+|---|---|---|
+| 加 `dsh-plugin` topic | ✅ | API `topics: ["deepseek-harness","dsh","dsh-plugin"]`（fork 不继承上游，需手动加；初次核对时确为空，后已补上） |
+| 开启 Issues | ✅ | `has_issues: true`，`bugs.url` 不再 404 |
+| 修正描述 | ✅ | About、`package.json:4`、npm `0.5.2` 的 description 三处一致：回收站口径 |
+| 启用 Actions | ✅ | 共 4 次运行：`checks` #3（08:46，success）、`release` #1（08:27，success） |
+| 发布 + Release | ✅ | npm `dsh-session-purge@0.5.2`（`gitHead 938d339`）；GitHub Release `v0.5.2`，资产 `dsh-session-purge.tgz` |
 
-仓库首页右侧 **About** → 齿轮图标 → **Topics** 填 `dsh-plugin`（可顺带加 `deepseek-harness`、`dsh`）→ 保存。
-`market/PR.md` 里写了「仓库带 `dsh-plugin` topic」，所以**先加 topic 再发 PR**，否则那句话就不属实。
-（fork 上的 Topics 入口偶尔不可用；真加不上时再考虑请 GitHub Support 把仓库脱离 fork 网络，一般不必。）
+描述统一后的文案（三处一致）：
 
-### 2.2 打开 Issues
+```
+A recycle bin for DSH session deletion: deleting a session moves it to a bin where it can be restored, and space is reclaimed on permanent delete or on a retention schedule.
+```
 
-当前 `has_issues: false`，而 `package.json` 的 `bugs.url` 指向 `…/issues`——点过去是 404，评审顺手点开就是个减分项。
-**Settings → General → Features → 勾上 Issues。**
-
-### 2.3 修正描述（评审第一条就是「描述与代码是否一致」）
-
-现状：About 与 `package.json` 原本还是 v0.2 文案（直接永久删除），而 0.5.x 已经是移入回收站。
-
-- ✅ **`package.json` 第 4 行已改**（本次提交）：
-
-  ```
-  A recycle bin for DSH session deletion: deleting a session moves it to a bin where it can be restored, and space is reclaimed on permanent delete or on a retention schedule.
-  ```
-
-- ⬜ **GitHub About 需要你在网页上改成同一句**（立刻生效，与收录判断最相关）。
-- ℹ️ npm 上的文字要等下次发布才同步：`npm run release -- --bump patch` 会自动升到 **0.5.2**（所以这里刻意没有手动改 `version`，避免跳到 0.5.3）。不发版也不影响收录——列表条目描述是独立的。
-
-> 仓库侧我只改了 `package.json` 的描述；版本号、LICENSE、发布脚本都没动。
+> 事后注记：本次修改之前，`package.json`、About 与 npm 上的文字还是 v0.2 的「permanently removes session logs」，与 0.5.x 的回收站模型不符——这是专门修掉的问题，也是评审第一条会查的东西。
 
 ---
 
@@ -119,10 +109,9 @@ git push -u origin add-verdana-dsh-session-purge
 ## 5. 合并之后（可选加分项）
 
 - **截图**：在 `package.json` 旁放 `screenshots.json`（1–8 张、相对路径、不能含 `..`、不能以 `/` 开头），市场详情页会按你的顺序展示，之后改图只需推自己的仓库。目前仓库没有图片，需要先截图。
-- **tarball**：**暂时不填，原因是查过的事实**——tag `v0.5.1` 已存在，但这个仓库的 GitHub Actions **一次都没运行过**（`/actions/runs` 返回 0 条，含推送后的复查），所以没有任何 Release，`releases/latest/download/...` 现在必然 404。另外本插件零依赖、无构建步骤，源码安装本来就不需要 `allowBuilds` 授权，`tarball:` 的收益接近零。
-  本地已验证产物本身没问题：`npm pack` 得到 `dsh-session-purge-0.5.1.tgz`，7 个文件（LICENSE、client/client.js、lib/index.js、package.json、两个 README、cordis.patch.yml），`market/` 没有进包，且文件名符合 [release.yml](.github/workflows/release.yml) 里 `mv dsh-session-purge-*.tgz dsh-session-purge.tgz` 的规则——**缺的只是 Actions 跑起来**。
-  真想要的话按这个顺序：Settings → Actions 确认已启用 → 发版 `npm run release -- --bump patch --publish`（脚本会**本地**打 tag 并提示推送命令，它自己不 push）→ `git push && git push origin v0.5.2` → workflow 生成资产（[release.yml](.github/workflows/release.yml) 已把文件名固定成不带版本号的 `dsh-session-purge.tgz`）→ 再把
-  `tarball: https://github.com/verdana/dsh-session-purge/releases/latest/download/dsh-session-purge.tgz` 加进条目。资产名不带版本号，换了 release 也不会 404。
+- **tarball**：已上线并复核。`v0.5.2` 推送后 `release` workflow（run #1，success）自动打包并挂出资产 `dsh-session-purge.tgz`（55,646 B，与本地 `npm pack` 的 7 文件包一致），资产名**不带版本号**，所以 `latest/download` 链接换版本也不会 404，条目里已填：
+  `tarball: https://github.com/verdana/dsh-session-purge/releases/latest/download/dsh-session-purge.tgz`
+  如果哪天不想维护 Release，删掉这一行即可，条目照常成立（零依赖、无构建步骤，源码安装本就不需要 `allowBuilds`）。
 - **`peerDependencies`**：`client/client.js` 运行时依赖宿主提供的 `@deepseek-ai/dsh-client-ui-primitives`，规范建议把官方包声明为 `peerDependencies` 而非 `dependencies`。当前 `package.json` 里两者都没有（零依赖是设计的一部分），不加也能收录；如果要加，注意预发布范围的坑——`>=0.0.1-rc.1 <0.2.0` 这类写法会静默排除 `0.1.0-rc.x`，必须写成 `>=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.2.0-0` 的形式。
 - 更新自己条目时：只改 `data/plugins/verdana__dsh-session-purge.yml` 再让 CI 重新生成，**永远不要手工编辑两个 README**。
 
