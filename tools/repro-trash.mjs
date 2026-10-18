@@ -29,6 +29,8 @@ import { homedir, tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { openSessionPersistence } from './lib/backend.mjs';
+
 const DSH_HOME = process.env.DSH_HOME ?? join(homedir(), '.dsh');
 const SESSIONS_ROOT = join(DSH_HOME, 'sessions');
 
@@ -229,18 +231,16 @@ catch (error) {
 const probeRoot = join(root, '..', 'probe');
 let chosen = null;
 for (const candidate of candidates) {
-    const { default: Instance } = await import(`file://${candidate.replace(/\\/g, '/')}`);
     const probeDir = join(probeRoot, String(candidates.indexOf(candidate)));
     await mkdir(probeDir, { recursive: true });
-    const instance = new Instance(
-        { on() {}, effect: (cb) => cb(), reflect: { provide() {} }, logger: console },
-        { root: probeDir, compression: 'zstd' },
-    );
+    // One opener for both backend generations: the 0.2.1+ backend is a plugin
+    // mounted on a real Cordis context, the older one a constructed class.
+    const opened = await openSessionPersistence(candidate, { root: probeDir, compression: 'zstd' });
     try {
-        const version = await createFixture(instance, probeDir);
+        const version = await createFixture(opened.persistence, probeDir);
         console.log(`  candidate: ${labelFor(candidate)} → session format v${version}`);
         if (chosen === null || version > chosen.version) {
-            chosen = { Instance, path: candidate, version };
+            chosen = { path: candidate, version };
         }
         if (version === 4) break;
     }
@@ -252,15 +252,16 @@ for (const candidate of candidates) {
         }
         throw error;
     }
+    finally {
+        await opened.dispose();
+    }
 }
 await rm(probeRoot, { recursive: true, force: true });
 if (chosen === null) throw new Error('no installed backend could materialize a session fixture');
 
-const backend = new chosen.Instance(
-    { on() {}, effect: (cb) => cb(), reflect: { provide() {} }, logger: console },
-    { root, compression: 'zstd' },
-);
 const backendPath = chosen.path;
+const openedBackend = await openSessionPersistence(backendPath, { root, compression: 'zstd' });
+const backend = openedBackend.persistence;
 const fixtureVersion = await createFixture(backend, projectDir);
 console.log(`backend : ${labelFor(backendPath)} (session format v${fixtureVersion})`);
 
@@ -395,6 +396,7 @@ else {
     console.log('\nreal session untouched: n/a (no readable user session available)');
 }
 
+await openedBackend.dispose();
 await rm(join(root, '..'), { recursive: true, force: true });
 
 if (failures.length > 0 || !realUntouched) {

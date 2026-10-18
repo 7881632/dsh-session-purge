@@ -119,6 +119,58 @@ test('collectTrashAnchorCandidates keeps the documented priority order', () => {
     assert.equal(english[0].index, 0);
 });
 
+// ── settings-entry launchers ───────────────────────────────────────────────
+
+/** One fake launcher button for the DOM-free trigger lookup. */
+function fakeLauncher(label, visible, inMenu) {
+    return {
+        getAttribute: (name) => (name === 'aria-label' ? label : null),
+        getClientRects: () => (visible ? [1] : []),
+        closest: () => (inMenu ? {} : null),
+    };
+}
+
+test('pickSettingsMenuItem presses only an exact Settings row', () => {
+    assert.equal(BIN.pickSettingsMenuItem(['回收站', '设置', '意见反馈']), 1);
+    assert.equal(BIN.pickSettingsMenuItem(['Recycle bin', 'Settings']), 1);
+    // A different row that merely starts with 设置 must never be pressed.
+    assert.equal(BIN.pickSettingsMenuItem(['设置工作区', '回收站']), -1);
+    assert.equal(BIN.pickSettingsMenuItem([]), -1);
+    assert.equal(BIN.pickSettingsMenuItem(null), -1);
+    assert.equal(typeof BIN.openSettingsViaAccountMenu, 'function');
+});
+
+test('findLabeledTrigger resolves both launcher generations and skips menu rows', () => {
+    const accountHidden = fakeLauncher('账号菜单', false, false);
+    const accountInMenu = fakeLauncher('账号菜单', true, true);
+    const accountVisible = fakeLauncher('账号菜单', true, false);
+    const directSettings = fakeLauncher('设置', true, false);
+    const previous = globalThis.document;
+    try {
+        // 0.2.1: the account menu is the launcher; Settings is a row, not a button.
+        globalThis.document = {
+            querySelectorAll: () => [accountHidden, accountInMenu, accountVisible, directSettings],
+        };
+        assert.equal(BIN.findAccountMenuTrigger(), accountVisible);
+        assert.equal(BIN.findSettingsTrigger(), directSettings);
+        // ≤ 0.2.0: the direct Settings button wins and no account menu exists.
+        globalThis.document = { querySelectorAll: () => [directSettings] };
+        assert.equal(BIN.findSettingsTrigger(), directSettings);
+        assert.equal(BIN.findAccountMenuTrigger(), null);
+        // English labels resolve the same way.
+        globalThis.document = { querySelectorAll: () => [fakeLauncher('Account menu', true, false)] };
+        assert.equal(BIN.findAccountMenuTrigger().getAttribute('aria-label'), 'Account menu');
+        // No document at all degrades to no launcher.
+        delete globalThis.document;
+        assert.equal(BIN.findSettingsTrigger(), null);
+        assert.equal(BIN.findAccountMenuTrigger(), null);
+    }
+    finally {
+        if (previous === undefined) delete globalThis.document;
+        else globalThis.document = previous;
+    }
+});
+
 // ── formatting ─────────────────────────────────────────────────────────────
 
 test('formatBytes renders bytes, kilobytes and megabytes', () => {
@@ -391,10 +443,10 @@ test('pickLabeledButton ignores hidden twins and menu entries', () => {
 
 test('opening settings from the bin presses the shell launcher', () => {
     resetStore();
-    // No DOM in this runner, so the pure picker is exercised above and the
-    // degradation path here: a missing trigger becomes a hint, never a dead click.
+    // No DOM in this runner, so the pure pickers are exercised above and the
+    // degradation path here: a missing launcher becomes a hint, never a dead click.
     BIN.openSettingsFromBin();
-    assert.equal(BIN.binStore.get().notice, '请从侧边栏「设置 → 回收站」打开设置');
+    assert.equal(BIN.binStore.get().notice, '打开左下角账号菜单 → 设置 → 回收站');
     assert.equal(BIN.binStore.get().open, false, 'the panel must not close on a failed jump');
 });
 

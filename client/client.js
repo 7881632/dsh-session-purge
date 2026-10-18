@@ -73,7 +73,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.policyOff": "自动清理：已关闭",
 			"bin.openFailed": "无法打开回收站，请稍后重试",
 			"bin.close": "关闭",
-			"bin.settingsHint": "请从侧边栏「设置 → 回收站」打开设置",
+			"bin.settingsHint": "打开左下角账号菜单 → 设置 → 回收站",
 			"settings.section": "回收站",
 			"settings.autoClean": "自动清理回收站",
 			"settings.autoCleanHint": "关闭后回收站不再自动删除任何条目，只能手动清理。",
@@ -158,7 +158,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.policyOff": "Auto-clean: off",
 			"bin.openFailed": "Could not open the recycle bin — try again",
 			"bin.close": "Close",
-			"bin.settingsHint": "Open Settings → Recycle bin from the sidebar to configure it",
+			"bin.settingsHint": "Open the account menu (bottom left) → Settings → Recycle bin",
 			"settings.section": "Recycle bin",
 			"settings.autoClean": "Auto-clean the recycle bin",
 			"settings.autoCleanHint": "When off, nothing is deleted automatically — only manual clean-up runs.",
@@ -713,10 +713,18 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	//
 	// Upstream exposes no documented way for a plugin to open the settings
 	// panel, so the plugin presses the shell's own launcher exactly as a user
-	// would: that button's accessible name is the one stable handle. A missing
-	// button degrades to a hint, never to a dead click.
+	// would. Two launcher generations exist:
+	//   ≤ 0.2.0  a visible sidebar button whose accessible name is 设置 / Settings
+	//   0.2.1+   the account menu (账号菜单 / Account menu) occupies the shell's
+	//            `settings.launcher` slot and Settings is a row inside it
+	//            (dsh-client-ui-settings-account); the direct button is gone, so
+	//            the search becomes two-step: open the account menu, then press
+	//            its Settings row.
+	// A shell that offers neither degrades to a hint, never to a dead click.
 
 	var SETTINGS_TRIGGER_LABELS = ["设置", "Settings"];
+	var ACCOUNT_MENU_LABELS = ["账号菜单", "Account menu"];
+	var SETTINGS_MENU_ITEM_LABELS = ["设置", "Settings"];
 
 	/** The first candidate that is visible, outside a menu, and labelled. Pure. */
 	function pickLabeledButton(candidates, labels) {
@@ -728,7 +736,25 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return -1;
 	}
 
-	function findSettingsTrigger() {
+	/**
+	 * The index of the settings row in one menu's labels, or -1. Pure.
+	 *
+	 * Exact equality, not the prefix tolerance the session-row verbs use: a
+	 * different row that merely starts with 设置 (设置工作区…) must never be
+	 * pressed. The account menu's own row label is exactly 设置 / Settings.
+	 * @param labels - labels from {@link menuItemLabels}, in DOM order.
+	 * @returns the matching row index, or -1.
+	 */
+	function pickSettingsMenuItem(labels) {
+		if (!Array.isArray(labels)) return -1;
+		for (var i = 0; i < labels.length; i++) {
+			if (SETTINGS_MENU_ITEM_LABELS.indexOf(labels[i]) !== -1) return i;
+		}
+		return -1;
+	}
+
+	/** Find one visible, non-menu button by accessible name, or null. */
+	function findLabeledTrigger(labels) {
 		if (typeof document === "undefined") return null;
 		var buttons = document.querySelectorAll("button[aria-label]");
 		var candidates = [];
@@ -740,18 +766,75 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				inMenu: typeof buttons[i].closest === "function" && buttons[i].closest('[role="menu"]') !== null
 			});
 		}
-		var picked = pickLabeledButton(candidates, SETTINGS_TRIGGER_LABELS);
+		var picked = pickLabeledButton(candidates, labels);
 		return picked < 0 ? null : buttons[picked];
+	}
+
+	function findSettingsTrigger() {
+		return findLabeledTrigger(SETTINGS_TRIGGER_LABELS);
+	}
+
+	function findAccountMenuTrigger() {
+		return findLabeledTrigger(ACCOUNT_MENU_LABELS);
+	}
+
+	/**
+	 * Press the settings row of whichever menu is open now.
+	 * @returns whether a row was found and clicked.
+	 */
+	function clickSettingsMenuItem() {
+		if (typeof document === "undefined") return false;
+		var menus = document.querySelectorAll('div[role="menu"]');
+		for (var m = 0; m < menus.length; m++) {
+			var labels = menuItemLabels(menus[m]);
+			var index = pickSettingsMenuItem(labels);
+			if (index < 0) continue;
+			var buttons = menus[m].querySelectorAll('button[role="menuitem"]');
+			if (index >= buttons.length) continue;
+			buttons[index].click();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Open the settings shell through the 0.2.1 account menu.
+	 *
+	 * The menu is a portal mounted on the commit after its trigger click, so the
+	 * row cannot be pressed synchronously; retry on timers for a short window
+	 * instead of guessing one frame. Returns whether a trigger was found at all.
+	 * @returns whether the account-menu path was attempted.
+	 */
+	function openSettingsViaAccountMenu() {
+		var trigger = findAccountMenuTrigger();
+		if (trigger === null) return false;
+		closeTrashPanel();
+		trigger.click();
+		var attempts = 0;
+		function attempt() {
+			if (clickSettingsMenuItem()) return;
+			attempts++;
+			if (attempts < 10) {
+				setTimeout(attempt, 50);
+				return;
+			}
+			// The menu never exposed a Settings row: say so on the next panel open
+			// instead of leaving the click silent.
+			binStore.set({ notice: tr("bin.settingsHint") });
+		}
+		setTimeout(attempt, 0);
+		return true;
 	}
 
 	function openSettingsFromBin() {
 		var trigger = findSettingsTrigger();
-		if (trigger === null) {
-			binStore.set({ notice: tr("bin.settingsHint") });
+		if (trigger !== null) {
+			closeTrashPanel();
+			trigger.click();
 			return;
 		}
-		closeTrashPanel();
-		trigger.click();
+		if (openSettingsViaAccountMenu()) return;
+		binStore.set({ notice: tr("bin.settingsHint") });
 	}
 
 	function baseName(p) {
@@ -773,6 +856,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	//   0.1.7+   it renders 置顶会话 / 重命名 / 分叉会话 / 归档会话, every verb
 	//            carrying a keyboard-shortcut keycap that joins the button's
 	//            textContent, and plugin-registered rows may follow that block.
+	//   0.2.1+   the block gains a trailing 复制 Session ID / Copy Session ID row
+	//            (no keycap); it is an extra row to the ordered-subsequence match,
+	//            so detection and the archive anchor are unaffected.
 	// So detection matches the three built-in verbs as an ordered subsequence
 	// (instead of an exact three-item list) and the new row is anchored right
 	// after the archive row, keeping it inside the built-in block.
@@ -2053,6 +2139,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		confirmBinAction: confirmBinAction,
 		binPolicyText: binPolicyText,
 		pickLabeledButton: pickLabeledButton,
+		// Settings entry: both launcher generations and the account-menu row pick.
+		ACCOUNT_MENU_LABELS: ACCOUNT_MENU_LABELS,
+		SETTINGS_MENU_ITEM_LABELS: SETTINGS_MENU_ITEM_LABELS,
+		pickSettingsMenuItem: pickSettingsMenuItem,
+		findSettingsTrigger: findSettingsTrigger,
+		findAccountMenuTrigger: findAccountMenuTrigger,
+		openSettingsViaAccountMenu: openSettingsViaAccountMenu,
 		// Settings page surface.
 		settingsStore: settingsStore,
 		retentionOptions: retentionOptions,

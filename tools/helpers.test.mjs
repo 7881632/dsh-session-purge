@@ -18,6 +18,7 @@ import {
     diskSessionReport,
     findSessionSnapshot,
     hasActiveJob,
+    resolveHome,
     service,
     sessionDirectoryFromLogPath,
     snapshotSessionId,
@@ -377,6 +378,39 @@ test('the state report degrades when services are missing', async () => {
         { persistence: false, sessions: [] });
 });
 
+// ── harness-home resolution ────────────────────────────────────────────────
+//
+// dsh-app-boot provides `dshHomePath` as a FUNCTION, not a string, so a
+// `typeof === 'string'` check never matched it and a relocated home was
+// ignored. The probe must call it, and it must go through ctx.get(): a
+// `ctx.dshHomePath` property read throws when the fiber lacks the inject
+// declaration (the pre-0.5.1 code read that property too).
+
+test('resolveHome calls the boot-provided dshHomePath function', () => {
+    const previous = process.env.DSH_HOME;
+    process.env.DSH_HOME = '/env-fallback';
+    try {
+        assert.equal(resolveHome({ get: () => () => '/boot/function-home' }), '/boot/function-home');
+        assert.equal(resolveHome({ get: () => '/boot/string-home' }), '/boot/string-home');
+        assert.equal(resolveHome({ get: () => undefined }), '/env-fallback');
+        // A service-proxy property read throws without the inject declaration;
+        // resolution must not depend on it.
+        const ctx = { get: () => undefined };
+        Object.defineProperty(ctx, 'dshHomePath', {
+            get() { throw new Error('cannot get property "dshHomePath" without inject'); },
+        });
+        assert.equal(resolveHome(ctx), '/env-fallback');
+        assert.equal(resolveHome(undefined), '/env-fallback');
+        // Blank or throwing accessor results fall through, never crash.
+        assert.equal(resolveHome({ get: () => '   ' }), '/env-fallback');
+        assert.equal(resolveHome({ get: () => () => { throw new Error('boom'); } }), '/env-fallback');
+    }
+    finally {
+        if (previous === undefined) delete process.env.DSH_HOME;
+        else process.env.DSH_HOME = previous;
+    }
+});
+
 // ── the background-job gate, driven for real ───────────────────────────────
 //
 // The source assertions above pin the call SHAPE; this drives the actual
@@ -567,6 +601,8 @@ test('the success heading uses the tick icon and its own title key', () => {
 //   0.1.5-rc.3  the three built-in verbs, plain text, nothing else
 //   0.1.7-rc.2  置顶会话 prepended, every verb carrying a shortcut keycap, and
 //               plugin-registered rows appended after the built-in block
+//   0.2.1-rc.2  a trailing 复制 Session ID / Copy Session ID row is added after
+//               archive (no keycap); the rest of the block is unchanged
 // A regression here means the delete item is silently never injected — the
 // exact failure that made the plugin dead on 0.1.7.
 
@@ -673,6 +709,27 @@ test('0.1.7 menu labels (pin row + shortcut keycaps) are still detected', () => 
 
 test('0.1.7 English menu labels are still detected', () => {
     const raw = ['Pin session', 'RenameCtrl+Shift+R', 'Fork sessionCtrl+Shift+F', 'Archive sessionCtrl+Alt+A'];
+    assert.equal(MENU.matchesSequence(raw), true);
+    assert.equal(MENU.archiveIndex(raw), 3);
+});
+
+test('0.2.1 menu labels (trailing Copy Session ID row) are detected', () => {
+    // 0.2.1 adds a fifth built-in row after archive. It has no shortcut, so it
+    // carries no aria-hidden keycap span; the first four keep theirs.
+    const raw = [
+        '置顶会话', '重命名Ctrl+Shift+R', '分叉会话Ctrl+Shift+F', '归档会话Ctrl+Alt+A', '复制 Session ID',
+    ];
+    assert.equal(raw.length, 5, 'precondition: 0.2.1 has five built-in rows');
+    assert.equal(MENU.matchesSequence(raw), true,
+        'the extra row must not break the ordered-subsequence match');
+    assert.equal(MENU.archiveIndex(raw), 3,
+        'the delete entry must still land between archive and Copy Session ID');
+});
+
+test('0.2.1 English menu labels are detected', () => {
+    const raw = [
+        'Pin session', 'RenameCtrl+Shift+R', 'Fork sessionCtrl+Shift+F', 'Archive sessionCtrl+Alt+A', 'Copy Session ID',
+    ];
     assert.equal(MENU.matchesSequence(raw), true);
     assert.equal(MENU.archiveIndex(raw), 3);
 });

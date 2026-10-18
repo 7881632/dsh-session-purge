@@ -16,6 +16,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { openSessionPersistence } from './lib/backend.mjs';
 import { sessionDirectoryFromLogPath, snapshotSessionId } from '../lib/index.js';
 
 const DSH_HOME = process.env.DSH_HOME ?? join(homedir(), '.dsh');
@@ -138,15 +139,11 @@ const backendPath = await (async () => {
         process.exit(0);
     }
 })();
-const { default: JsonlSessionPersistence } = await import(`file://${backendPath.replace(/\\/g, '/')}`);
-const { removeSessionLog } = await import('../lib/index.js');
-
 // Throwaway root laid out exactly like ~/.dsh/sessions.
 const root = await mkdtemp(join(tmpdir(), 'dsh-purge-'));
-const backend = new JsonlSessionPersistence(
-    { on() {}, effect: (cb) => cb(), reflect: { provide() {} }, logger: console },
-    { root, compression: 'zstd' },
-);
+const openedBackend = await openSessionPersistence(backendPath, { root, compression: 'zstd' });
+const backend = openedBackend.persistence;
+const { removeSessionLog } = await import('../lib/index.js');
 
 const source = await pickSourceSession();
 let realUntouched = true;
@@ -204,6 +201,7 @@ if (source !== undefined) {
     console.log('real log untouched            :', realUntouched);
 }
 
+await openedBackend.dispose();
 await rm(root, { recursive: true, force: true });
 if (!result.ok || derived === undefined || existsSync(derived) || !realUntouched) {
     process.exitCode = 1;
