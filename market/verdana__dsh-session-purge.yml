@@ -1,6 +1,7 @@
 url: https://github.com/verdana/dsh-session-purge
 name: verdana/dsh-session-purge
 category: session
+tarball: https://github.com/verdana/dsh-session-purge/releases/latest/download/dsh-session-purge.tgz
 description:
   en: 'Moves a deleted session into a recycle bin instead of erasing it, with restore, permanent delete and retention-based auto-clean.'
   zh: '删除会话时移入回收站而非直接抹除，可随时复原、可永久删除，并按保留期自动清理。'
