@@ -2,6 +2,9 @@
 
 面向维护者。终端用户请读 [README.md](./README.md)。
 
+当前发布：**0.5.2**（2026-10-18，npm 与 GitHub Release）。`main` 上另有尚未发布的设置页增强
+（导航项垃圾桶图标、页脚版本号、npm 更新提示），下一次发布（建议 `--bump minor`）时带上。
+
 ## 代码结构
 
 - `lib/index.js` — Host 半：`/session-purge/{trash,restore,purge,empty,sweep,settings,state,delete,undo}`
@@ -15,6 +18,7 @@
   端到端脚本（`repro-delete.mjs` 永久删除、`repro-trash.mjs` 回收站全流程）、冒烟脚本、
   浏览器探针（弹窗 / 面板 / 设置页 / 隔离实例端到端）
 - `docs/recycle-bin/` — 回收站的产品规格（spec.md）与技术设计（design.md）
+- `docs/compat-0.2.1-rc.2.md` — DSH 0.2.1 兼容性清查的历史报告（0.5.0 时期，行号与测试数已过时）
 
 ## 本地开发
 
@@ -35,8 +39,8 @@ node tools/repro-delete.mjs           # 端到端：永久删除（真实 JSONL 
 node tools/repro-trash.mjs            # 端到端：移入 → 复原（逐字节）→ 真实删除 → 过期清理
 node tools/smoke-install.mjs ./x.tgz  # 隔离 home 里装包冒烟
 node tools/dialog-render-probe.mjs    # 真实 React + 真实主题渲染弹窗，核对配色
-node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 6 种状态
-node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置页并逐个驱动控件
+node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态
+node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置页并逐个驱动控件（含版本页脚/更新链接）
 ```
 
 隔离实例的浏览器端到端（不动你自己的 3080）：
@@ -50,6 +54,9 @@ node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 
 都不碰你的 `~/.dsh`（用临时 `DSH_HOME`）。渲染探针需要 DSH 源码树（取 React 与
 主题 CSS），不需要起服务；源码树不在默认位置时用 `DSH_REPO` 指定。
 
+Windows 上 `tools/trash.test.mjs` 的收尾清理偶尔会对 symlink/junction 目录报 `ENOTEMPTY`；
+用例断言仍是 28/28 通过，报错来自清理测试自己创建的临时目录，不影响仓库与发布。
+
 三条容易踩的规矩：
 
 - **改菜单识别逻辑，必须同步更新 `tools/helpers.test.mjs` 里的标签 fixture**。
@@ -58,7 +65,8 @@ node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 
   与 `settings-render-probe.mjs`**。静态断言看不出 `var()` 究竟解析成什么颜色。
 - **改侧边栏注入或设置页，跑一次 `bin-live-probe.mjs`**：锚点识别、60px 上限覆写、
   「复原后不刷新页面行就回来」、以及设置页四项真的落库，只有真 shell 能证明
-  （design.md §8.5 记了探针的四个坑）。
+  （design.md §8.5 记了探针的四个坑）。设置页导航图标依赖真实 shell 的
+  `[role="dialog"] nav` DOM，版本页脚依赖宿主返回 `version`，这两项也只有 live 探针能证明。
 
 ## 回收站模型（0.5.0 起）
 
@@ -102,6 +110,9 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 **版本号归发布脚本管**（`--bump` 会跑 `npm version`、提交、打 tag）。特性提交里
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
+0.5.2 之后 `main` 上还有未发布改动；发布前先确认工作树干净，再按需要
+`npm run release -- --bump patch --smoke`（新特性建议 `minor`，修文档/探针用 `patch`）。
+
 ## 跨版本兼容
 
 浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是主要需要随版本走
@@ -136,6 +147,7 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 | `agent.phase.kind` | TS `private`，**不在公开 `Agent` 接口上** | 无法区分 idle / maintenance |
 | `agent.scope.dispose()` | 类字段 public，不在 `Agent` 接口上 | 走不到安全释放 → 降级队列 |
 | `ctx.get('dshHomePath')` | 值是**函数**；0.5.1 起取出后调用（见下） | 旧版探测不命中，家目录回退 `$DSH_HOME` → `~/.dsh` |
+| 设置导航 DOM（`[role="dialog"] nav button` + 本地化 label） | 0.2.1 shell 实测；不是槽位契约 | 图标退回齿轮/不替换，其余功能正常 |
 
 刻意保留的取舍：
 

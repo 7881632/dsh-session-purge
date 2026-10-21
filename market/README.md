@@ -13,19 +13,22 @@
 
 `market/` 不在 `package.json` 的 `files` 白名单里，所以这些文件不会进 npm 包。
 
+> 本核对以 2026-10-18 发布的 `v0.5.2` 为准；`main` 在发布后另有设置页图标、版本页脚与
+> 更新提示等未发布改动，不影响条目指向的 `v0.5.2` tarball。第 4 节的代码行号按当前 `main` 更新。
+
 ---
 
 ## 1. 规范核对结果（已按当前仓库状态核实）
 
 | 规范要求 | 本仓库现状 | 结论 |
 |---|---|---|
-| `package.json` 声明 `dsh.bundle` | [package.json:15](package.json#L15) → `"patch": "./cordis.patch.yml"`；[cordis.patch.yml](cordis.patch.yml) 插入 `id: session-purge` / `name: dsh-session-purge` | 通过 |
-| 真实可用代码（非占位/纯 README） | [lib/index.js](lib/index.js)（回收站、复原、清空、保留期扫描）+ [client/client.js](client/client.js)（菜单项、回收站面板、设置页），`tools/*.test.mjs` 测试，[.github/workflows/ci.yml](.github/workflows/ci.yml) 跑 Windows/macOS/Linux 与 Node 22/24 | 通过 |
+| `package.json` 声明 `dsh.bundle` | [package.json:15](../package.json#L15) → `"patch": "./cordis.patch.yml"`；[cordis.patch.yml](../cordis.patch.yml) 插入 `id: session-purge` / `name: dsh-session-purge` | 通过 |
+| 真实可用代码（非占位/纯 README） | [lib/index.js](../lib/index.js)（回收站、复原、清空、保留期扫描）+ [client/client.js](../client/client.js)（菜单项、回收站面板、设置页），`tools/*.test.mjs` 测试，[.github/workflows/ci.yml](../.github/workflows/ci.yml) 跑 Windows/macOS/Linux 与 Node 22/24 | 通过 |
 | 仓库创建满 1 天 | 创建于 2026-09-21，最后推送 2026-10-18 | 通过 |
 | 仓库带 `dsh-plugin` topic | 已加：`["deepseek-harness","dsh","dsh-plugin"]`（fork 不继承上游，需手动加，已补） | 通过 |
 | 描述属实、无营销词 | About、`package.json`、npm 0.5.2 三处口径一致，均为回收站模型 | 通过 |
 | 一个 PR 只加 1 个文件、≤3 条、不手改两个 README | 本方案只新增 1 个 yml | 通过 |
-| npm 包的 `repository` 指回本仓库 | npm 上的 `dsh-session-purge@0.5.1`：`repository = git+https://github.com/verdana/dsh-session-purge.git` | 通过（无需在 yml 里写 `npm:`） |
+| npm 包的 `repository` 指回本仓库 | npm 上的 `dsh-session-purge@0.5.2`：`repository = git+https://github.com/verdana/dsh-session-purge.git` | 通过（无需在 yml 里写 `npm:`） |
 | `tarball:` 字段 | Release v0.5.2 由 Actions 生成，资产 `dsh-session-purge.tgz`（55,646 B），`latest/download` 有效，条目已填 | 已启用 |
 | 截图 | 仓库内无图片、无 `screenshots.json` | 可选，暂不声明 |
 | fork 身份 | 本仓库是 `Yicijiuhaobala/dsh-session-delete` 的 fork；规范明确「fork 维护得更好或确实做了新东西时可收录」 | 可投，但**必须在 PR 里主动说明**（`market/PR.md` 已写） |
@@ -96,11 +99,11 @@ git push -u origin add-verdana-dsh-session-purge
 
 | 条目描述里的说法 | 代码位置 |
 |---|---|
-| 删除时移入回收站（不直接抹除） | [lib/index.js:1838](lib/index.js#L1838) `POST /session-purge/trash`；菜单项 [client/client.js:34](client/client.js#L34) `menu.trashSession` |
-| 可随时复原 | [lib/index.js:1539](lib/index.js#L1539) `restoreSession()`，按记录的原始路径回放；入口 [lib/index.js:1888](lib/index.js#L1888) |
-| 可永久删除 | `Delete permanently` / `Empty the recycle bin` → [lib/index.js:1267](lib/index.js#L1267) `emptyTrash()` |
-| 按保留期自动清理 | [lib/index.js:794](lib/index.js#L794-L795) 默认 `autoClean: true` + `retentionDays: 30`；扫描入口 [lib/index.js:1893](lib/index.js#L1893) `POST /session-purge/sweep` |
-| 设置页 | [client/client.js:77](client/client.js#L77) 起 `settings.*` 文案；后端 [lib/index.js:1900](lib/index.js#L1900) |
+| 删除时移入回收站（不直接抹除） | [lib/index.js:1859](../lib/index.js#L1859) `POST /session-purge/trash`；菜单项 [client/client.js:34](../client/client.js#L34) `menu.trashSession` |
+| 可随时复原 | [lib/index.js:1560](../lib/index.js#L1560) `restoreSession()`，按记录的原始路径回放；入口 [lib/index.js:1910](../lib/index.js#L1910) |
+| 可永久删除 | `Delete permanently` / `Empty the recycle bin` → [lib/index.js:1288](../lib/index.js#L1288) `emptyTrash()` |
+| 按保留期自动清理 | [lib/index.js:815](../lib/index.js#L815-L816) 默认 `autoClean: true` + `retentionDays: 30`；扫描入口 [lib/index.js:1915](../lib/index.js#L1915) `POST /session-purge/sweep` |
+| 设置页 | [client/client.js:77](../client/client.js#L77) 起 `settings.*` 文案；后端 [lib/index.js:1922](../lib/index.js#L1922) |
 
 如果评审问「fork 凭什么收录」，`market/PR.md` 里已准备好答案：上游最后推送是 2026-08-24，本仓库按回收站模型重写（面板、复原、保留期、设置页），并且列表里查不到上游条目。
 

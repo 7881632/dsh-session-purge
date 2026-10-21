@@ -12,6 +12,11 @@ stays on disk forever. This plugin is about **deletion**, and it splits deletion
 into two jobs: the reversible part (move to the bin) and reclaiming disk space
 (true delete, or automatic clean-up on a retention schedule).
 
+> **Release status**: the current npm / GitHub Release is `0.5.2` (2026-10-18).
+> `main` also carries unreleased settings-page polish — the bin icon in the
+> settings nav, the version footer and the npm update hint — which will reach the
+> npm package with the next release.
+
 ## What it does
 
 - **Session-row menu**: `⋯` → **Move to recycle bin** (replacing the old
@@ -23,9 +28,10 @@ into two jobs: the reversible part (move to the bin) and reclaiming disk space
   **restored** or **deleted permanently**, with **Empty the recycle bin** and the
   retention policy in the footer.
 - **Account menu → Settings → Recycle bin** (since DSH 0.2.1; older shells show a
-  sidebar **Settings** button): the auto-clean switch, the retention period
-  (7/30/90/365 days / forever), sweep-on-startup, the sweep interval (1–168 hours),
-  usage stats, **Clean up now** and **Open the recycle bin**.
+  sidebar **Settings** button): the nav row uses the bin icon, plus the auto-clean
+  switch, the retention period (7/30/90/365 days / forever), sweep-on-startup, the
+  sweep interval (1–168 hours), usage stats, **Clean up now** and **Open the recycle
+  bin**; the footer shows the running version and hints at newer npm releases.
 - **Defaults**: auto-clean on, 30-day retention, one sweep at startup plus one
   every 6 hours. Changes take effect immediately — no restart.
 
@@ -93,7 +99,8 @@ The page footer is separated by a rule and shows **the version of the plugin tha
 actually running**. Opening the page also makes one best-effort npm registry check: a
 newer release gets a clickable hint, the latest release says "Up to date", and an
 offline or blocked registry is skipped silently — the version line stays, and no
-setting is affected.
+setting is affected. The version comes from the host half, so after upgrading the
+plugin, restart `dsh web` once; a page reload alone will not show the new footer.
 
 ## What to know
 
@@ -172,13 +179,13 @@ setting is affected.
 ## Requirements
 
 - DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.2 and
-  0.2.0-rc.2**: the bin panel, the settings page, auto-clean, the full
-  move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
-  account-menu settings entry and the dev repro scripts against the plugin-style
-  JSONL backend. The menu and sidebar injection for 0.1.7-rc.2 / 0.1.5-rc.3 use
-  the same DOM detection and are expected to work, but were not re-verified in
-  this round; 0.1.5-rc.3 has no settings extension point, so the **settings page
-  is unavailable there** — use the HTTP routes above instead.
+  0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls, auto-clean,
+  the full move → restore → delete-permanently → sweep round trip, plus (on 0.2.1)
+  the account-menu settings entry and the dev repro scripts against the
+  plugin-style JSONL backend. The menu and sidebar injection for 0.1.7-rc.2 /
+  0.1.5-rc.3 use the same DOM detection and are expected to work, but were not
+  re-verified in this round; 0.1.5-rc.3 has no settings extension point, so the
+  **settings page is unavailable there** — use the HTTP routes above instead.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.

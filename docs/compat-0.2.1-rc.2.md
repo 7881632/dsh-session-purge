@@ -1,5 +1,10 @@
 # dsh-session-purge × DSH 0.2.1-rc.2 兼容性清查
 
+> **历史文档**：本报告记录 2026-10-18、插件 `0.5.0` 时期对 DSH 0.2.1-rc.2 的兼容性清查。
+> 之后仓库已发布 `0.5.2`，并加入设置页图标/版本页脚/更新提示等改动；文中的测试数量、代码行号和
+> “建议发布 0.5.1”等结论只反映当时状态。当前状态请看 [README.md](../README.md)、
+> [DEVELOPING.md](../DEVELOPING.md) 与 [docs/recycle-bin/](./recycle-bin/)。
+
 日期：2026-10-18
 插件：`dsh-session-purge@0.5.0`（git `5318000`，工作区干净）
 目标 DSH：`0.2.1-rc.2`（标签 `dsh-v0.2.1-rc.2`，HEAD `687f282e86`；npm 已发布同版本）
