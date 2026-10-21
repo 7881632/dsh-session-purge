@@ -7,7 +7,8 @@
 - `lib/index.js` — Host 半：`/session-purge/{trash,restore,purge,empty,sweep,settings,state,delete,undo}`
   路由、回收站内核与永久删除逻辑
 - `client/client.js` — 浏览器半：会话行菜单注入 + 侧边栏回收站入口 + 回收站面板 +
-  设置面板里的「回收站」页 + 确认弹窗（React，无 JSX；UI 原语可选、缺失时自绘）
+  设置面板里的「回收站」页（导航项垃圾桶图标、页脚版本号与 npm 更新提示）+ 确认弹窗
+  （React，无 JSX；UI 原语可选、缺失时自绘）
 - `cordis.patch.yml` — bundle 补丁，把插件行插入 profile 合成树
 - `scripts/publish-npm.mjs` — npm 发布流水线（默认只核查）
 - `tools/` — 回归测试（`helpers.test.mjs` 上游适配、`trash.test.mjs` 宿主、`client-bin.test.mjs` 客户端）、

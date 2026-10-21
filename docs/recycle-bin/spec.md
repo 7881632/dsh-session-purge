@@ -153,7 +153,8 @@
 
 ### 5.6 设置页
 
-- **位置**：DSH 设置面板新增一个导航项「回收站」（`settings.section`，`order = 50`，排在通用/模型/插件等内置项之后）。面板为单一滚动列；导航图标由上游 shell 统一决定（未知 id 用齿轮图标）。
+- **位置**：DSH 设置面板新增一个导航项「回收站」（`settings.section`，`order = 50`，排在通用/模型/插件等内置项之后）。面板为单一滚动列。导航项使用与侧边栏入口同族的**垃圾桶图标**；上游槽位没有图标参数，插件在 DOM 里标记自己的导航行，再用 CSS 替换 shell 为未知 id 生成的默认齿轮（见 design.md §7.4）。
+- **页脚**：内容底部有一条分隔线，下面显示**当前运行中的宿主版本号**（读 `package.json`，不是浏览器包里的副本）；随后做一次尽力而为的 npm 更新检查，有新版本时给出提示与链接，离线/被阻断时只显示版本号，不报错。
 - **内容**：
 
 | 分组 | 控件 | 键 | 默认 | 说明 |
@@ -263,6 +264,10 @@
 | `settings.sweepIntervalHint` | 1–168 小时；改完立即生效，无需重启。 | 1–168 hours; takes effect immediately, no restart. |
 | `settings.never` | 从未 | never |
 | `settings.unavailable` | 暂时读不到回收站设置，请重试 | The recycle-bin settings are temporarily unavailable — retry |
+| `settings.version` | 版本 {version} | Version {version} |
+| `settings.upToDate` | 已是最新版本 | Up to date |
+| `settings.updateAvailable` | 有新版本 {version} 可用 | Version {version} is available |
+| `settings.viewOnNpm` | 在 npm 上查看 | View on npm |
 | `bin.settingsHint` | 打开左下角账号菜单 → 设置 → 回收站 | Open the account menu (bottom left) → Settings → Recycle bin |
 
 ## 9. 验收标准
@@ -314,7 +319,7 @@
 **质量门槛**
 
 - [ ] AC-17 `node --test tools/*.test.mjs` 全绿（新增用例见 design.md §8）。
-  ✅ **105 passed / 0 failed**（helpers 49 + trash 28 + client-bin 28），CI 已改为跑该命令。
+  ✅ **115 passed / 0 failed**（helpers 52 + trash 28 + client-bin 35），CI 已改为跑该命令。
 - [ ] AC-18 `node tools/repro-trash.mjs` 端到端通过（真实 JSONL 持久层副本：移入 → 列表不含 → 复原 → 列表含且字节一致）。
   ✅ 通过：真实 v4 后端 + 真实会话副本（含一份真实用户日志的拷贝），逐字节比对与身份校验都过。
 - [ ] AC-19 在隔离 home 的探针实例（`tools/probe-setup.ps1`，端口 3081）里手工走通 §5–§7 的全部主流程；截图归档。
@@ -328,7 +333,7 @@
 | 里程碑 | 内容 | 退出标准 | 状态 |
 |---|---|---|---|
 | **M1 宿主回收站内核** | 回收站路径与元数据、`trash`/`restore`/`purge`/`empty`/`sweep`、路由、`pending.json` 语义改为"重启后移入"、安全校验 | AC-6/7/8/9/10/11 的宿主侧用例通过；`repro-trash.mjs` 通过 | ✅ 已完成（27 个单测 + 真实 v4 后端端到端） |
-| **M2 客户端主流程** | 菜单项改文案与配色、确认弹窗、回收站面板（列表/复原/真实删除/清空）、侧边栏图标注入 | AC-1/2/3/4/6/8 手工 + 探针验证通过 | ✅ 已完成（28 个客户端单测 + 面板渲染探针 + 隔离实例端到端） |
+| **M2 客户端主流程** | 菜单项改文案与配色、确认弹窗、回收站面板（列表/复原/真实删除/清空）、侧边栏图标注入 | AC-1/2/3/4/6/8 手工 + 探针验证通过 | ✅ 已完成（客户端单测 + 面板渲染探针 + 隔离实例端到端） |
 | **M3 设置与自动清理** | `settings.json`、设置路由、`settings.section` 注册、启动+定时清理、统计 | AC-12/13/14/15/16 通过 | ✅ 已完成（宿主侧 M1 已就绪；M3 补齐 `settings.section` 页面 + 控件探测 + live 验证） |
 | **M4 打磨与发布** | 分页/筛选/提示、i18n 校验、README/DEVELOPING、版本 `0.5.0`、发布流水线 | AC-17/18/19/20 通过，发布检查六道闸门通过 | 🔶 代码与文档已就绪并提交（AC-17/18/19/20 通过）；**版本号与 npm 发布按用户要求暂缓**，发布前跑一次 `npm run release:check` |
 

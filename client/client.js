@@ -91,6 +91,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"settings.openBin": "打开回收站",
 			"settings.saveFailed": "设置保存失败，请重试",
 			"settings.unavailable": "暂时读不到回收站设置，请重试",
+			"settings.version": "版本 {version}",
+			"settings.upToDate": "已是最新版本",
+			"settings.updateAvailable": "有新版本 {version} 可用",
+			"settings.viewOnNpm": "在 npm 上查看",
 			"row.locked": "该会话正在运行——请先停止或等它完成，再移入回收站",
 			"row.trash": "移入回收站",
 			"row.cancel": "取消",
@@ -176,6 +180,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"settings.openBin": "Open the recycle bin",
 			"settings.saveFailed": "Could not save the setting — try again",
 			"settings.unavailable": "The recycle-bin settings are temporarily unavailable — retry",
+			"settings.version": "Version {version}",
+			"settings.upToDate": "Up to date",
+			"settings.updateAvailable": "Version {version} is available",
+			"settings.viewOnNpm": "View on npm",
 			"row.locked": "This session is running — stop it (or let it finish) before moving it to the bin",
 			"row.trash": "Move to recycle bin",
 			"row.cancel": "Cancel",
@@ -207,6 +215,20 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	var ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg>';
 	/** Same slot, same weight: a tick for the terminal "it worked" state. */
 	var OK_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 8.6l3.1 3.1 6.5-7.3"/></svg>';
+
+	// ── settings nav icon ───────────────────────────────────────────────────
+	//
+	// The shell derives a settings nav glyph from the section id and falls back
+	// to a gear for every community id (`ui-settings-general` navIcon); the
+	// `settings.section` contract carries `id`/`order`/`label` but no icon. The
+	// plugin therefore marks its own nav row in the DOM and paints the bin glyph
+	// through a CSS mask: the shell's gear stays untouched for React to own and
+	// is hidden only while our marker is present. The SVG is the exact
+	// `IconTrashOutlineRegular` geometry at the shell's nav-icon weight (Medium,
+	// 1px stroke), so it sits beside the other settings glyphs without looking
+	// borrowed or slightly too bold.
+	var SETTINGS_NAV_ATTR = "data-sd-settings-nav";
+	var NAV_ICON_MASK = "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221%22%3E%3Cpath%20d%3D%22M1.28149%203.88831H14.7187%22%2F%3E%3Cpath%20d%3D%22M5.41602%203.88833V2.47962C5.41602%202.29282%205.52492%202.11366%205.71876%201.98157C5.9126%201.84948%206.17551%201.77527%206.44964%201.77527H9.55053C9.82466%201.77527%2010.0876%201.84948%2010.2814%201.98157C10.4753%202.11366%2010.5842%202.29282%2010.5842%202.47962V3.88833%22%2F%3E%3Cpath%20d%3D%22M2.57349%203.88831L3.19366%2013.2943C3.21937%2013.5502%203.33952%2013.7872%203.53065%2013.9593C3.72178%2014.1313%203.97016%2014.2259%204.22729%2014.2246H11.7728C12.0299%2014.2259%2012.2783%2014.1313%2012.4694%2013.9593C12.6605%2013.7872%2012.7807%2013.5502%2012.8064%2013.2943L13.4266%203.88831%22%2F%3E%3Cpath%20d%3D%22M6.44946%206.98926V11.1238%22%2F%3E%3Cpath%20d%3D%22M9.55054%206.98926V11.1238%22%2F%3E%3C%2Fsvg%3E\")";
 
 	var CSS = [
 		".sd-icon{display:inline-flex;align-items:center;flex:none}",
@@ -311,6 +333,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-set-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
 		".sd-set-notice{font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-set-error{font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary,#ff8080)}",
+		// The footer closes the page: version (from the host, not this bundle) and
+		// the npm update check, separated from the controls by a rule.
+		".sd-set-about{margin-top:2px;padding-top:12px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));display:flex;flex-direction:column;gap:4px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-set-version{font-variant-numeric:tabular-nums}",
+		".sd-set-link{color:var(--dsw-alias-brand-primary,#4c8dff);text-decoration:none}",
+		".sd-set-link:hover{text-decoration:underline}",
+		// The settings nav glyph: hide the shell's gear and paint the bin in its
+		// place. Both rules only apply while the marker below is present.
+		"[data-sd-settings-nav=\"trash\"] > svg{display:none}",
+		"[data-sd-settings-nav=\"trash\"]::before{content:\"\";flex:none;width:16px;height:16px;background-color:currentColor;-webkit-mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat;mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat}",
 		".sd-bin-link:hover{text-decoration:underline}",
 		".sd-bin-more{display:block;width:100%;height:26px;margin-top:8px;border-radius:8px;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:11px;cursor:pointer}",
 		".sd-bin-more:hover{color:var(--dsw-alias-label-primary,#e8ecff)}"
@@ -503,6 +535,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				error: null,
 				notice: notice !== null ? notice : binStore.get().notice
 			});
+			rememberVersion(body);
 		}, function () {
 			binStore.set({ phase: "failed", error: tr("bin.loadFailed") });
 		});
@@ -610,15 +643,114 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	var RETENTION_CHOICES = [7, 30, 90, 365, 0];
 	var SWEEP_INTERVAL_MIN = 1;
 	var SWEEP_INTERVAL_MAX = 168;
+	/** The published package's "latest" document; the only network call the page makes. */
+	var UPDATE_REGISTRY_URL = "https://registry.npmjs.org/dsh-session-purge/latest";
+	var UPDATE_CHECK_TIMEOUT_MS = 5000;
+	var NPM_PACKAGE_URL = "https://www.npmjs.com/package/dsh-session-purge";
 
 	var settingsStore = createStore({
 		phase: "idle",     // idle | loading | ready | failed
 		settings: null,
 		stats: null,
+		version: null,     // the RUNNING HOST's version, reported by its routes
+		update: null,      // { latest, newer, same } once the npm check resolves
 		saving: null,      // the field being written, or "sweep"
 		error: null,
 		notice: null
 	});
+
+	/** Whether the one-shot npm check has been started (it must not repeat). */
+	var updateCheckStarted = false;
+
+	/** Keep the version the host reports, from whichever route answered first. */
+	function rememberVersion(body) {
+		if (body === null || body === undefined) return;
+		var value = body.version;
+		if (typeof value !== "string" || value === "") return;
+		if (settingsStore.get().version !== value) settingsStore.set({ version: value });
+	}
+
+	/**
+	 * Parse "1.2.3" / "v1.2.3-beta.1" into a numeric core and an optional
+	 * prerelease tag. Returns null for anything that is not version-shaped, so
+	 * a malformed registry reply can never raise a false update hint.
+	 */
+	function versionParts(value) {
+		if (typeof value !== "string") return null;
+		var text = value.trim().replace(/^v/i, "");
+		if (text === "") return null;
+		var pieces = text.split("-");
+		var coreText = pieces[0].split(".");
+		if (coreText.length < 1 || coreText.length > 4) return null;
+		var core = [];
+		for (var i = 0; i < coreText.length; i++) {
+			if (!/^\d+$/.test(coreText[i])) return null;
+			core.push(parseInt(coreText[i], 10));
+		}
+		return { core: core, pre: pieces.length > 1 ? pieces.slice(1).join("-") : null };
+	}
+
+	/** Semver-ish ordering: -1 / 0 / 1, or null when either side is unparsable. */
+	function compareVersions(left, right) {
+		var a = versionParts(left);
+		var b = versionParts(right);
+		if (a === null || b === null) return null;
+		var length = Math.max(a.core.length, b.core.length);
+		for (var i = 0; i < length; i++) {
+			var x = i < a.core.length ? a.core[i] : 0;
+			var y = i < b.core.length ? b.core[i] : 0;
+			if (x !== y) return x < y ? -1 : 1;
+		}
+		if (a.pre === b.pre) return 0;
+		// A release is newer than any prerelease of the same core version.
+		if (a.pre === null) return 1;
+		if (b.pre === null) return -1;
+		return a.pre < b.pre ? -1 : 1;
+	}
+
+	/**
+	 * Ask the npm registry for the latest published version, once per page load.
+	 *
+	 * This is deliberately best-effort: the settings page must never wait on it,
+	 * and every failure mode (offline, blocked, CSP, a malformed reply) leaves
+	 * the footer with just the version line. It only runs in a real page, so the
+	 * DOM-free unit tests never touch the network.
+	 */
+	function checkForUpdate(current) {
+		if (updateCheckStarted) return null;
+		if (typeof document === "undefined" || typeof fetch !== "function") return null;
+		if (typeof current !== "string" || current === "") return null;
+		updateCheckStarted = true;
+		var controller = typeof AbortController === "function" ? new AbortController() : null;
+		var timer = controller === null ? null : setTimeout(function () {
+			try { controller.abort(); } catch (e) {}
+		}, UPDATE_CHECK_TIMEOUT_MS);
+		function finish(payload) {
+			if (timer !== null) clearTimeout(timer);
+			var latest = payload !== null && typeof payload === "object" && typeof payload.version === "string"
+				? payload.version
+				: null;
+			if (latest === null) return;
+			var order = compareVersions(latest, current);
+			if (order === null) return;
+			settingsStore.set({ update: { latest: latest, newer: order > 0, same: order === 0 } });
+		}
+		fetch(UPDATE_REGISTRY_URL, {
+			cache: "no-store",
+			signal: controller === null ? undefined : controller.signal
+		}).then(function (response) {
+			if (response === null || response === undefined || response.ok === false) return null;
+			return response.json().catch(function () { return null; });
+		}).then(finish, function () { finish(null); });
+		return null;
+	}
+
+	/** Start the check if this page load has both a version and no result yet. */
+	function maybeCheckForUpdate() {
+		var state = settingsStore.get();
+		if (updateCheckStarted || state.update !== null) return null;
+		return checkForUpdate(state.version);
+	}
 
 	/** The retention label for one choice. */
 	function retentionLabel(days) {
@@ -648,6 +780,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		settingsStore.set({ phase: settingsStore.get().phase === "ready" ? "ready" : "loading" });
 		return binRequest("/session-purge/settings").then(function (result) {
 			var body = result.body;
+			// Even a failed read may carry the host's version (the route includes
+			// it in its error body), so the footer can stay truthful.
+			rememberVersion(body);
 			if (result.status !== 200 || body === null || body.ok !== true) {
 				settingsStore.set({ phase: "failed", error: tr("settings.unavailable") });
 				return;
@@ -1740,7 +1875,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			? props.close
 			: null;
 		React.useEffect(function () {
-			void refreshSettings();
+			// A version may already be known from the bin load; start the update
+			// check now, and again after the settings read in case only it answered.
+			maybeCheckForUpdate();
+			void refreshSettings().then(function () { maybeCheckForUpdate(); });
 		}, []);
 
 		var settings = state.settings;
@@ -1830,6 +1968,32 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			children.push(React.createElement("div", { key: "error", className: "sd-set-error" }, state.error));
 		}
 
+		// The footer closes the page with the host's own version. The update line
+		// only appears when the (best-effort) npm check produced a comparable
+		// answer: an offline page shows the version alone rather than a warning.
+		var version = state.version;
+		if (typeof version === "string" && version !== "") {
+			var about = [
+				React.createElement("div", { key: "version", className: "sd-set-version" },
+					tr("settings.version", { version: version }))
+			];
+			var update = state.update;
+			if (update !== null && update.newer === true) {
+				about.push(React.createElement("div", { key: "update", className: "sd-set-update" },
+					React.createElement("a", {
+						className: "sd-set-link",
+						href: NPM_PACKAGE_URL,
+						target: "_blank",
+						rel: "noreferrer",
+						title: tr("settings.viewOnNpm")
+					}, tr("settings.updateAvailable", { version: update.latest }))));
+			} else if (update !== null && update.same === true) {
+				about.push(React.createElement("div", { key: "update", className: "sd-set-update" },
+					tr("settings.upToDate")));
+			}
+			children.push(React.createElement("div", { key: "about", className: "sd-set-about" }, about));
+		}
+
 		return React.createElement("div", { className: "sd-set" }, [
 			React.createElement("div", { key: "heading", className: "sd-set-heading" }, tr("settings.section"))
 		].concat(children));
@@ -1865,6 +2029,49 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				// way in, and nothing else degrades.
 			}
 		});
+	}
+
+	/**
+	 * Mark the plugin's settings nav row, so the stylesheet can swap the shell's
+	 * fallback gear for the bin glyph (see the icon comment near `ICON`).
+	 *
+	 * The row is found by its localized label inside a `<nav>`, which is the one
+	 * identifying detail the slot contract exposes to the DOM; the marker is an
+	 * attribute (not a node) so React keeps ownership of every child it renders.
+	 */
+	function markSettingsNavIcon() {
+		if (typeof document === "undefined") return;
+		var label = tr("settings.section");
+		var buttons = document.querySelectorAll("[role=\"dialog\"] nav button");
+		for (var i = 0; i < buttons.length; i++) {
+			var button = buttons[i];
+			var text = typeof button.textContent === "string" ? button.textContent.trim() : "";
+			// Marking is one-way: a locale switch may update the label's text
+			// without a childList mutation, and removing/re-adding the marker on
+			// a transient mismatch would leave the gear on screen. Rows are keyed
+			// by section id, so this button is never recycled for another page.
+			if (text === label) button.setAttribute(SETTINGS_NAV_ATTR, "trash");
+		}
+	}
+
+	/** Re-mark the row whenever the settings panel (re)mounts; idempotent. */
+	function installSettingsNavIcon() {
+		if (typeof document === "undefined" || document.body === null) return function () {};
+		var scheduled = false;
+		function schedule() {
+			if (scheduled) return;
+			scheduled = true;
+			setTimeout(function () {
+				scheduled = false;
+				markSettingsNavIcon();
+			}, 150);
+		}
+		markSettingsNavIcon();
+		var observer = new MutationObserver(schedule);
+		// childList only: the label's text is stable while the row is mounted, and
+		// observing characterData would fire for every streamed token in the app.
+		observer.observe(document.body, { childList: true, subtree: true });
+		return function () { observer.disconnect(); };
 	}
 
 	/**
@@ -2083,6 +2290,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// The settings page registers into the shell's settings domain; a shell
 		// without it keeps working (the host route remains the only way in).
 		installSettingsSection(ctx);
+		// The section contract has no icon option, so the nav row is marked for a
+		// CSS glyph swap (the shell's own fallback is a gear).
+		ctx.effect(installSettingsNavIcon, "session-purge: settings nav icon");
 		ctx.effect(function () {
 			return function () {
 				disposeDialogHost();
@@ -2151,9 +2361,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		retentionOptions: retentionOptions,
 		retentionLabel: retentionLabel,
 		lastSweepText: lastSweepText,
+		compareVersions: compareVersions,
+		versionParts: versionParts,
 		refreshSettings: refreshSettings,
 		saveSetting: saveSetting,
 		runSweepNow: runSweepNow,
+		maybeCheckForUpdate: maybeCheckForUpdate,
+		markSettingsNavIcon: markSettingsNavIcon,
 		openSettingsFromBin: openSettingsFromBin,
 		SettingsSection: SettingsSection,
 		SwitchControl: SwitchControl,

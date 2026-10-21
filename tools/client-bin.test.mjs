@@ -408,7 +408,8 @@ test('the policy line follows the host settings, and hides when they are unknown
 /** The settings page's own store, reset to a known state. */
 function resetSettings() {
     BIN.settingsStore.set({
-        phase: 'idle', settings: null, stats: null, saving: null, error: null, notice: null,
+        phase: 'idle', settings: null, stats: null, version: null, update: null,
+        saving: null, error: null, notice: null,
     });
 }
 
@@ -458,6 +459,7 @@ test('refreshSettings loads the policy, the stats and the bin policy line', asyn
             status: 200,
             body: {
                 ok: true,
+                version: '0.5.2',
                 settings: { schema: 1, autoClean: false, retentionDays: 7, sweepOnBoot: true, sweepIntervalHours: 12 },
                 stats: { count: 3, totalBytes: 2048, lastSweepAt: 1000, lastSweepRemoved: 1 },
             },
@@ -467,11 +469,88 @@ test('refreshSettings loads the policy, the stats and the bin policy line', asyn
     const state = BIN.settingsStore.get();
     assert.equal(calls[0].path, '/session-purge/settings');
     assert.equal(state.phase, 'ready');
+    assert.equal(state.version, '0.5.2', 'the footer shows the host-reported version');
     assert.equal(state.settings.retentionDays, 7);
     assert.equal(state.stats.count, 3);
     // The bin panel's footer reads the same policy.
     assert.equal(BIN.binStore.get().settings.retentionDays, 7);
     assert.equal(BIN.binPolicyText(), '自动清理：已关闭');
+});
+
+test('a failed settings read still adopts the version in its error body', async () => {
+    resetSettings();
+    stubFetch({
+        '/session-purge/settings': {
+            status: 503,
+            body: { ok: false, version: '0.5.2', code: 'storage' },
+        },
+    });
+    await BIN.refreshSettings();
+    assert.equal(BIN.settingsStore.get().phase, 'failed');
+    assert.equal(BIN.settingsStore.get().version, '0.5.2');
+});
+
+test('update hints need a real semver answer, and only a newer one shows', () => {
+    assert.equal(BIN.compareVersions('0.5.2', '0.5.2'), 0);
+    assert.equal(BIN.compareVersions('0.5.3', '0.5.2'), 1);
+    assert.equal(BIN.compareVersions('0.5.2', '0.5.3'), -1);
+    assert.equal(BIN.compareVersions('0.6.0', '0.5.99'), 1);
+    assert.equal(BIN.compareVersions('v1.0.0', '0.9.9'), 1);
+    assert.equal(BIN.compareVersions('1.0.0-beta.1', '1.0.0'), -1);
+    assert.equal(BIN.compareVersions('1.0.0', '1.0.0-beta.1'), 1);
+    assert.equal(BIN.compareVersions('garbage', '1.0.0'), null);
+    assert.equal(BIN.compareVersions('1.0.0', null), null);
+});
+
+test('the npm update check stays offline in a DOM-free runner', () => {
+    resetSettings();
+    BIN.settingsStore.set({ version: '0.5.2' });
+    const calls = stubFetch({});
+    BIN.maybeCheckForUpdate();
+    assert.equal(calls.length, 0);
+    assert.equal(BIN.settingsStore.get().update, null);
+});
+
+test('markSettingsNavIcon marks only our localized row inside a nav', () => {
+    const makeRow = (text) => {
+        const values = new Map();
+        return {
+            textContent: text,
+            getAttribute: (name) => values.has(name) ? values.get(name) : null,
+            setAttribute: (name, value) => { values.set(name, value); },
+            removeAttribute: (name) => { values.delete(name); },
+        };
+    };
+    const other = makeRow('通用');
+    const ours = makeRow(' 回收站 ');
+    const fakeDocument = {
+        querySelectorAll: (selector) => {
+            assert.equal(selector, '[role="dialog"] nav button');
+            return [other, ours];
+        },
+    };
+    globalThis.document = fakeDocument;
+    try {
+        BIN.markSettingsNavIcon();
+    } finally {
+        delete globalThis.document;
+    }
+    assert.equal(ours.getAttribute('data-sd-settings-nav'), 'trash');
+    assert.equal(other.getAttribute('data-sd-settings-nav'), null);
+});
+
+test('a newer registry version turns into the footer hint', async () => {
+    resetSettings();
+    BIN.settingsStore.set({ version: '0.5.2' });
+    globalThis.document = {};
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ version: '0.6.0' }) });
+    try {
+        BIN.maybeCheckForUpdate();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+        delete globalThis.document;
+    }
+    assert.deepEqual(BIN.settingsStore.get().update, { latest: '0.6.0', newer: true, same: false });
 });
 
 test('a failed settings read reports it without losing the page', async () => {

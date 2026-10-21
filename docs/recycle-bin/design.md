@@ -391,13 +391,13 @@ emptyTrash(): 逐条 purgeEntry，聚合结果 { removed, failed }
 
 | 方法 | 路径 | 请求体 | 成功响应 | 说明 |
 |---|---|---|---|---|
-| GET | `/session-purge/trash` | — | `{ ok, entries[], totalBytes, settings, lastSweepAt, lastSweepRemoved }` | 面板数据源 |
+| GET | `/session-purge/trash` | — | `{ ok, version, entries[], totalBytes, settings, lastSweepAt, lastSweepRemoved }` | 面板数据源 |
 | POST | `/session-purge/trash` | `{ sessionId, title? }` | `{ ok, mode:'trashed'\|'queued'\|'already', trashId?, name? }` | 移入回收站 |
 | POST | `/session-purge/restore` | `{ sessionId }` | `{ ok, restoredTo, wasArchived, cwdMissing }` | 复原 |
 | POST | `/session-purge/purge` | `{ sessionId }` | `{ ok, freedBytes }` | 真实删除单条 |
 | POST | `/session-purge/empty` | `{ confirm: true }` | `{ ok, removed, failed, freedBytes }` | 清空 |
 | POST | `/session-purge/sweep` | — | `{ ok, removed, skipped? }` | 立即清理 |
-| GET | `/session-purge/settings` | — | `{ ok, settings, stats }` | 设置页读 |
+| GET | `/session-purge/settings` | — | `{ ok, version, settings, stats }` | 设置页读；失败响应也带 `version` |
 | POST | `/session-purge/settings` | 局部 patch | `{ ok, settings }` | 设置页写 |
 | GET | `/session-purge/state` | — | 现有结构 + `trash:{count,totalBytes,lastSweepAt,lastSweepRemoved}` + `settings` | 诊断；`entryInjected`（侧边栏注入是否成功）尚未上报，列为 M4 可选项 |
 | POST | `/session-purge/undo` | `{ sessionId }` | `{ ok }` | 现有：取消重启队列 |
@@ -538,8 +538,19 @@ ctx.inject(['slots'], (scope) => {
 - **面板 → 设置**：面板底部的策略行现在是一个按钮，点击后按 shell 自己启动按钮的
   `aria-label`（设置 / Settings）找到并点击它——上游没有"打开设置面板"的公开 API；
   找不到时退化为一句提示，不做死点击。
-- 导航图标由 shell 硬编码（未知 id 落到齿轮图标，`ui-settings-general/src/client/SettingsRoot.tsx:31-39`），
-  我们无法指定 —— 这是可接受的。
+- **导航图标**：上游 `settings.section` 的注册参数只有 `id`/`order`/`label`，`navIcon()` 按 id 查表、未知 id 回退齿轮
+  （`ui-settings-general/src/client/SettingsRoot.tsx:31-39`）。插件保留 `id: session-purge`，在
+  `[role="dialog"] nav button` 中按本地化 label 找到自己的行并打上 `data-sd-settings-nav="trash"`，CSS 隐藏
+  shell 的 `<svg>` 并用 mask 画出 `IconTrashOutlineRegular` 同几何的垃圾桶（Medium 权重 1px stroke、
+  `currentColor`，与设置导航其他图标一致）。标记只加属性、不插节点，React
+  仍完全拥有自己的子树；MutationObserver 用 150 ms 合并重建，`childList` 观察（不观察 `characterData`，
+  避免流式输出时抖动）。
+- **页脚**：`GET /session-purge/settings` 与 `/trash` 都带 `version`（宿主启动时从 `../package.json` 读一次），
+  浏览器半从先到者记住；设置页底部渲染 `.sd-set-about`（`border-top` 分隔线 + 「版本 x.y.z」）。
+- **更新提示**：设置页挂载后做一次 npm registry 检查（`GET https://registry.npmjs.org/dsh-session-purge/latest`，
+  5 s `AbortController` 超时）。只在 `document` 存在时发起，所以无 DOM 的单测不触网；失败/离线/CSP 阻断时
+  静默，只留版本行。版本比较是内置的小 semver 解析（`compareVersions`），registry 返回不可解析的值时
+  不产生提示。npm 已有更新时那行是链接，指向包主页。
 - `package.json` **不需要**追加 `dsh.client.inject`：bundle 只用 seed 词，槽位就绪由
   `ctx.slots.inject` 保证（§2.8、§2.9）。
 - 上游没有 `settings.section`（0.1.5）时注册不生效但**不报错**；此时设置只能通过
@@ -557,8 +568,8 @@ ctx.inject(['slots'], (scope) => {
 | 保留期 | `retentionDue()` 边界（恰好到期、retention=0、时钟回拨） |
 | 复原目标 | `restoreDestination()`：正常、目标已存在、root 外、缺 cwd |
 | 崩溃恢复 | `moving` × {载荷在/不在} × {原目录在/不在} 四种组合 |
-| 客户端（`tools/client-bin.test.mjs`，28 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、无 `slots` 时不崩 |
-| 渲染（`tools/dialog-render-probe.mjs`、`tools/trash-panel-probe.mjs`、`tools/settings-render-probe.mjs`） | 真实 React + 真实主题下：确认/成功/排队三态配色；面板 6 种状态、明暗两套；**设置页**逐控件驱动（开关只写 autoClean、保留期写 90、周期写 12、越界回弹、清理报告、打开回收站、关掉自动清理后调度控件锁定、暗色可渲染） |
+| 客户端（`tools/client-bin.test.mjs`，35 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、页脚版本（成功与失败响应）、`compareVersions` 更新判断、npm 检查的成功/静默失败、导航行标记、无 `slots` 时不崩 |
+| 渲染（`tools/dialog-render-probe.mjs`、`tools/trash-panel-probe.mjs`、`tools/settings-render-probe.mjs`） | 真实 React + 真实主题下：确认/成功/排队三态配色；面板 6 种状态、明暗两套；**设置页**逐控件驱动（开关只写 autoClean、保留期写 90、周期写 12、越界回弹、清理报告、打开回收站、关掉自动清理后调度控件锁定、暗色可渲染、页脚分隔线 + 宿主版本 + 更新链接） |
 | 现有回归 | `hasActiveJob`、`diskSessionReport`、`tearDownResident` 全套不得回归 |
 
 ### 8.2 端到端（新增 `tools/repro-trash.mjs`，对标 `repro-delete.mjs`）

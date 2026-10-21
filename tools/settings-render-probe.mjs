@@ -51,6 +51,7 @@ writeFileSync(join(dir, 'index.html'), `<!doctype html>
   // A miniature host: the page's own routes, backed by mutable state, so a
   // control's effect is observed exactly as the real host would apply it.
   window.__state = {
+    version: '0.5.2',
     settings: { schema: 1, autoClean: true, retentionDays: 30, sweepOnBoot: true, sweepIntervalHours: 6 },
     stats: { count: 3, totalBytes: 2048, lastSweepAt: Date.now() - 2 * 3600 * 1000, lastSweepRemoved: 1 },
     swept: 0,
@@ -69,14 +70,18 @@ writeFileSync(join(dir, 'index.html'), `<!doctype html>
       return reply({ ok: true, settings: window.__state.settings });
     }
     if (path === '/session-purge/settings') {
-      return reply({ ok: true, settings: window.__state.settings, stats: window.__state.stats });
+      return reply({ ok: true, version: window.__state.version, settings: window.__state.settings, stats: window.__state.stats });
+    }
+    if (path === 'https://registry.npmjs.org/dsh-session-purge/latest') {
+      // The update check is intentionally an external URL; stub it in the probe.
+      return reply({ version: '9.9.9' });
     }
     if (path === '/session-purge/sweep') {
       window.__state.swept += 1;
       return reply({ ok: true, removed: 2, failed: [] });
     }
     if (path === '/session-purge/trash') {
-      return reply({ ok: true, entries: [], totalBytes: 0, settings: window.__state.settings, sweep: null });
+      return reply({ ok: true, version: window.__state.version, entries: [], totalBytes: 0, settings: window.__state.settings, sweep: null });
     }
     return reply({ ok: true });
   };
@@ -153,6 +158,11 @@ const readPage = () => page.evaluate(() => {
         })),
         notice: root.querySelector('.sd-set-notice')?.textContent ?? null,
         error: root.querySelector('.sd-set-error')?.textContent ?? null,
+        version: root.querySelector('.sd-set-version')?.textContent ?? null,
+        update: root.querySelector('.sd-set-update')?.textContent ?? null,
+        updateHref: root.querySelector('.sd-set-update a')?.getAttribute('href') ?? null,
+        aboutBorder: root.querySelector('.sd-set-about') === null ? null
+            : getComputedStyle(root.querySelector('.sd-set-about')).borderTopWidth,
         headingColor: root.querySelector('.sd-set-heading') === null ? null : getComputedStyle(root.querySelector('.sd-set-heading')).color,
     };
 });
@@ -239,6 +249,15 @@ check('the fallback controls render with the stored values',
 check('both actions are offered',
     report.initial.buttons.map((b) => b.text).join('|') === '立即清理|打开回收站',
     JSON.stringify(report.initial.buttons.map((b) => b.text)));
+check('the footer separates the host version and reports the newer npm release',
+    report.initial.version === '版本 0.5.2'
+    && report.initial.update === '有新版本 9.9.9 可用'
+    && report.initial.updateHref === 'https://www.npmjs.com/package/dsh-session-purge'
+    && report.initial.aboutBorder === '1px',
+    JSON.stringify({
+        version: report.initial.version, update: report.initial.update,
+        href: report.initial.updateHref, border: report.initial.aboutBorder,
+    }));
 
 check('the auto-clean switch writes only autoClean and adopts the reply',
     allRequests.some((r) => r.method === 'POST' && r.path === '/session-purge/settings'

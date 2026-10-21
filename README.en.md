@@ -89,6 +89,12 @@ show a sidebar **Settings** button instead):
 | Clean up now | — | Run one retention sweep immediately and report how many entries went |
 | Open the recycle bin | — | Open the bin panel directly |
 
+The page footer is separated by a rule and shows **the version of the plugin that is
+actually running**. Opening the page also makes one best-effort npm registry check: a
+newer release gets a clickable hint, the latest release says "Up to date", and an
+offline or blocked registry is skipped silently — the version line stays, and no
+setting is affected.
+
 ## What to know
 
 - **Deletion is reversible; disk space is not reclaimed immediately.** Moving a

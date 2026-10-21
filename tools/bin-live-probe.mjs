@@ -367,6 +367,20 @@ const settingsPage = await page.evaluate(() => {
         })),
         buttons: [...root.querySelectorAll('.sd-set-actions button')].map((button) => button.textContent),
         primitives: root.querySelector('[role="tablist"]') !== null,
+        version: root.querySelector('.sd-set-version')?.textContent ?? null,
+        footerBorder: root.querySelector('.sd-set-about') === null ? null
+            : getComputedStyle(root.querySelector('.sd-set-about')).borderTopWidth,
+        navIcon: (() => {
+            const row = [...document.querySelectorAll('[role="dialog"] nav button')]
+                .find((button) => button.textContent.trim() === '回收站');
+            if (row === undefined) return null;
+            const svg = row.querySelector('svg');
+            return {
+                marker: row.getAttribute('data-sd-settings-nav'),
+                svgDisplay: svg === null ? null : getComputedStyle(svg).display,
+                glyphWidth: getComputedStyle(row, '::before').width,
+            };
+        })(),
     };
 });
 check('the settings page is reachable from the shell nav', settingsPage !== null);
@@ -375,6 +389,16 @@ check('it renders the four rows with the shell primitives',
     JSON.stringify(settingsPage?.rows?.map((row) => row.label)));
 check('it shows the live stats line',
     settingsPage !== null && /共 \d+ 个会话/.test(settingsPage.stats), String(settingsPage?.stats));
+check('the nav row carries the bin glyph instead of the shell gear',
+    settingsPage !== null && settingsPage.navIcon !== null
+    && settingsPage.navIcon.marker === 'trash'
+    && settingsPage.navIcon.svgDisplay === 'none'
+    && settingsPage.navIcon.glyphWidth === '16px',
+    JSON.stringify(settingsPage?.navIcon));
+check('the footer shows the running host version behind a rule',
+    settingsPage !== null && /^版本 \d+\.\d+\.\d+/.test(settingsPage.version ?? '')
+    && settingsPage.footerBorder === '1px',
+    JSON.stringify({ version: settingsPage?.version, border: settingsPage?.footerBorder }));
 await page.screenshot({ path: join(shots, '06-settings.png') });
 
 const readPersisted = () => page.evaluate(async () => (await fetch('/session-purge/settings')).json());

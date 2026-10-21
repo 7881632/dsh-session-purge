@@ -41,6 +41,7 @@ import {
     sweepTrash,
     trashSession,
     validateSettingsPatch,
+    version,
     writeSettings,
 } from '../lib/index.js';
 
@@ -600,10 +601,13 @@ test('the route surface serves the whole recycle-bin flow', async () => {
         '/session-purge/delete', '/session-purge/state', '/session-purge/undo']) {
         assert.ok(routes.has(path), `${path} must be registered`);
     }
+    // The footer reads the RUNNING host's version from package.json.
+    assert.match(version, /^\d+\.\d+\.\d+/);
 
     // Empty bin first.
     let response = await call('GET', '/session-purge/trash');
     assert.equal(response.status, 200);
+    assert.equal(response.body.version, version, 'the bin read reports the host version');
     assert.deepEqual(response.body.entries, []);
     assert.equal(response.body.settings.retentionDays, 30);
 
@@ -630,6 +634,7 @@ test('the route surface serves the whole recycle-bin flow', async () => {
     assert.equal(response.status, 400);
     assert.equal(response.body.code, 'settings-invalid');
     response = await call('GET', '/session-purge/settings');
+    assert.equal(response.body.version, version, 'the settings read reports the host version');
     assert.equal(response.body.settings.retentionDays, 90, 'a refused write must not change anything');
     assert.equal(response.body.stats.count, 1);
 
