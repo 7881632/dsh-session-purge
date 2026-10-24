@@ -194,6 +194,8 @@
 | 找不到会话记录 | 拒绝 | `未找到该会话的记录（磁盘上可能已不存在）` |
 | 日志目录无法证明 | 拒绝（安全优先） | `无法确认该会话的目录，已拒绝操作` |
 | 重复移入同一会话 | 幂等成功 | `该会话已在回收站中` |
+| 重复移入，且源目录仍在（跨卷窗口） | 拒绝，说明出路 | `回收站里已有该会话，但目录仍在磁盘上；请先复原或永久删除回收站中的那条` |
+| 清空时个别条目删不掉（载荷异常） | 已删的消失，删不掉的**保留在列表里**并在行内标原因，另给一条汇总提示 | `有 {n} 个会话未能删除，已保留在列表中` |
 | 复原时目标已存在 | 拒绝 | `该会话已存在，无法复原` |
 | 复原时原始目录不存在 | 允许 + 警告 | `原始目录已不存在，复原后可能不会显示在列表中` |
 | 跨卷（会话根不在同一卷） | 复制 + 删除回退，显示 `处理中…` | （无专门文案） |
@@ -241,7 +243,8 @@
 | `bin.purgeConfirm.body` | 将永久删除「{name}」及其全部磁盘记录，不可恢复。 | This permanently deletes “{name}” and all of its stored records. |
 | `bin.emptyAll` | 清空回收站 | Empty the recycle bin |
 | `bin.emptyAllConfirm.body` | 将永久删除 {n} 个会话（共 {size}），不可恢复。 | This permanently deletes {n} sessions ({size}). |
-| `bin.footer.stats` | 共 {n} 个会话 · 占用 {size} | {n} sessions · {size} |
+| `bin.emptyPartial` | 有 {n} 个会话未能删除，已保留在列表中 | {n} session(s) could not be deleted and stay in the list |
+| `bin.footer` | 共 {n} 个会话 · 占用 {size} | {n} sessions · {size} |
 | `bin.swept` | 已自动清理 {n} 个过期会话 | Auto-cleaned {n} expired sessions |
 | `bin.loadMore` | 加载更多 | Load more |
 | `bin.filter` | 按标题或目录筛选 | Filter by title or folder |
@@ -269,6 +272,11 @@
 | `settings.updateAvailable` | 有新版本 {version} 可用 | Version {version} is available |
 | `settings.viewOnNpm` | 在 npm 上查看 | View on npm |
 | `bin.settingsHint` | 打开左下角账号菜单 → 设置 → 回收站 | Open the account menu (bottom left) → Settings → Recycle bin |
+
+上表覆盖主流程文案；`error.*`（按宿主返回的 `code` 直接取用的行内原因，如 `live` / `busy` /
+`conflict` / `duplicate` / `unsupported` / `too-large`）与 `row.*` / `time.*` 属实现级 key，
+不逐条列举。新增 code 时两份词典都要加 key，`tools/helpers.test.mjs` 会断言中英 key 集合一致、
+且代码里用到的 key 都存在于词典。
 
 ## 9. 验收标准
 
@@ -369,6 +377,8 @@
 | 运行中的会话 | 宿主闸门（`live` / `busy`）有单测，"真跑一个会话再移入"没有端到端演练 | 行为由 `tearDownResident` 的严格 idle 条件保证；要演练需要真的跑一轮对话 |
 | 重启后移入队列（`pending.json`） | 写入侧（gate 重排队）与 boot 消费侧都有回归用例；没有制造真实排队条目的端到端 | 触发条件苛刻（内存里有无法安全释放的会话）；`/undo` 可取消 |
 | 跨卷移动的「已发布、未删源」窗口 | `recoverTrash` 把条目标成 `trashed`，源目录保留（不替用户删数据）；该会话再删除返回 `duplicate`，复原返回 `conflict` | 只在 EXDEV（会话根与 `DSH_HOME` 不同卷）时出现；出路是先真删回收站里那条，再重新删除 |
+| 跨卷复制中途崩溃留下的 `<trashId>.partial` | 复制/校验/发布任何一步失败都会当场清理；被直接杀掉时 boot 的孤儿扫描只点名 warn，不擅自删目录 | 需要人工到 `trash/` 下删除 `*.partial`；只在 EXDEV 回退 + 崩溃时出现 |
+| 删不掉的回收站条目（安全闸门拒绝） | 清空/永久删除会跳过它，响应 `failed[]` 点名具体 `trashId`，面板保留该行并标原因；没有「强制删除」开关 | 载荷异常时该条目会一直留着；出路是先复原取回会话、修好目录再删（README「排查」已写明） |
 | 跨重启的工作区分组 | 复原时 `attachSession` 有单测；"重启后再复原仍回到原工作区"没有端到端 | 复位失败只会落进 "Ungrouped"，不会丢数据 |
 | 英文界面 | 词典中英一致性与 `tr()` 行为有单测；live 探针只在中文下跑过 | 文案已按 §8 表核对；后续可加一条英文腿 |
 | 同一 home 起第二个 `dsh web` | 只有进程内串行，没有跨进程锁 | 设计文档 §4.6 已声明为尽力而为；两进程同时操作同一条目是未定义行为 |

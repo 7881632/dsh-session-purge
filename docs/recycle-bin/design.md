@@ -577,7 +577,7 @@ ctx.inject(['slots'], (scope) => {
 | 保留期 | `retentionDue()` 边界（恰好到期、retention=0、时钟回拨） |
 | 复原目标 | `restoreDestination()`：正常、目标已存在、root 外、缺 cwd |
 | 崩溃恢复 | `moving` × {载荷在/不在} × {原目录在/不在} 四种组合 |
-| 客户端（`tools/client-bin.test.mjs`，35 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、页脚版本（成功与失败响应）、`compareVersions` 更新判断、npm 检查的成功/静默失败、导航行标记、无 `slots` 时不崩 |
+| 客户端（`tools/client-bin.test.mjs`，36 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持（含清空部分失败时只保留 `failed[]` 点名的行）；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、页脚版本（成功与失败响应）、`compareVersions` 更新判断、npm 检查的成功/静默失败、导航行标记、无 `slots` 时不崩 |
 | 渲染（`tools/dialog-render-probe.mjs`、`tools/trash-panel-probe.mjs`、`tools/settings-render-probe.mjs`） | 真实 React + 真实主题下：确认/成功/排队三态配色；面板 7 种状态、明暗两套；**设置页**逐控件驱动（开关只写 autoClean、保留期写 90、周期写 12、越界回弹、清理报告、打开回收站、关掉自动清理后调度控件锁定、暗色可渲染、页脚分隔线 + 宿主版本 + 更新链接） |
 | 现有回归 | `hasActiveJob`、`diskSessionReport`、`tearDownResident` 全套不得回归 |
 

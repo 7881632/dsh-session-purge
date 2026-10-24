@@ -56,7 +56,7 @@ node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 
 主题 CSS），不需要起服务；源码树不在默认位置时用 `DSH_REPO` 指定。
 
 Windows 上 `tools/trash.test.mjs` 的收尾清理偶尔会对 symlink/junction 目录报 `ENOTEMPTY`；
-用例断言仍是 28/28 通过，报错来自清理测试自己创建的临时目录，不影响仓库与发布。
+用例断言仍是 32/32 通过，报错来自清理测试自己创建的临时目录，不影响仓库与发布。
 
 三条容易踩的规矩：
 

@@ -176,6 +176,12 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   curl -X POST http://127.0.0.1:<port>/session-purge/sweep
   ```
 
+- **A few entries survived "Empty the recycle bin"**: the host refused them —
+  usually because the payload directory was turned into a link pointing outside the
+  bin, which the safety gate rejects. Those rows stay in the panel with the reason
+  inline and a count of what could not be removed; reopening the panel keeps them.
+  **Restore** the session to get it back, or repair the directory and delete again.
+
 - Verbose logs: start `dsh web` with `DSH_PURGE_DEBUG=1`.
 
 ## Requirements
