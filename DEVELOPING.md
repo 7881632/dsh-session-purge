@@ -55,6 +55,15 @@ node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 
 都不碰你的 `~/.dsh`（用临时 `DSH_HOME`）。渲染探针需要 DSH 源码树（取 React 与
 主题 CSS），不需要起服务；源码树不在默认位置时用 `DSH_REPO` 指定。
 
+**跑探针的前置条件**（缺一样都会在 `require('playwright')` 或 `chromium.launch()` 处直接失败）：
+
+- DSH 源码树先装好依赖：`pnpm install`（`playwright` 是 `apps/web` 的 devDependency，
+  探针从 `<DSH_REPO>/apps/web/package.json` 解析它），再 `npx playwright install chromium`
+  装浏览器二进制。
+- `probe-setup.ps1` 的会话夹具默认取自 `<DSH 源码树>/.playwright-mcp/devhome`，
+  夹具在别处时传 `-SourceHome <path>`。插件目录按脚本位置推导，仓库搬到哪都不用改；
+  第三方主题 `dsh-nord` 缺失只跳过对应断言，不影响实例启动。
+
 Windows 上 `tools/trash.test.mjs` 的收尾清理偶尔会对 symlink/junction 目录报 `ENOTEMPTY`；
 用例断言仍是 32/32 通过，报错来自清理测试自己创建的临时目录，不影响仓库与发布。
 

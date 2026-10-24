@@ -20,7 +20,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const repo = 'D:/deepseek-harness';
+const repo = (process.env.DSH_REPO ?? 'D:/deepseek-harness').replace(/\\/g, '/');
 const require = createRequire(join(repo, 'apps/web/package.json'));
 const { chromium } = require('playwright');
 
