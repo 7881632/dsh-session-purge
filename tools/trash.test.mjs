@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, posix, relative, win32 } from 'node:path';
+import { dirname, join, posix, relative, win32 } from 'node:path';
 import { after, test } from 'node:test';
 
 import {
@@ -463,6 +463,41 @@ test('recovery drops an entry whose session and payload are both gone', async ()
     const result = await recoverTrash(fx.ctx);
     assert.equal(result.repaired, 1);
     assert.deepEqual(await listTrashEntries(fx.ctx), []);
+});
+
+// ── the restart queue ──────────────────────────────────────────────────────
+
+test('the boot queue keeps a still-held deletion and finishes the rest', async () => {
+    const fx = await fixture();
+    // A second session that this same pass can trash normally.
+    const otherId = 'session-99999999-8888-7777-6666-555555555555';
+    const otherDir = join(fx.sessionsRoot, fx.projectKey, otherId);
+    await mkdir(otherDir, { recursive: true });
+    await writeFile(join(otherDir, SESSION_LOG), 'header\n{"seq":2}\n', 'utf8');
+    fx.state.entries.push({ id: otherId, cwd: join(fx.home, 'proj'), dir: otherDir });
+
+    const pendingPath = join(fx.home, 'session-purge', 'pending.json');
+    await mkdir(dirname(pendingPath), { recursive: true });
+    await writeFile(pendingPath, JSON.stringify({ pending: [fx.sessionId, otherId] }), 'utf8');
+
+    // fx.sessionId is resident while the internals a teardown needs are missing,
+    // so its delete is re-queued for a later boot. The pass must not treat that
+    // as progress: dropping it would forget the deletion forever.
+    const services = {
+        ...fx.services,
+        sessions: {
+            list: () => [{ id: fx.sessionId }],
+            get: (id) => (id === fx.sessionId ? { id } : undefined),
+        },
+    };
+    await boot(services, fx.home);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.deepEqual(JSON.parse(await readFile(pendingPath, 'utf8')).pending, [fx.sessionId],
+        'the held deletion stays queued while the finished one leaves');
+    assert.equal(await exists(fx.sessionDir), true, 'the held session must still be on disk');
+    assert.equal(await exists(otherDir), false, 'the finished one really moved into the bin');
+    assert.equal((await listTrashEntries(fx.ctx)).length, 1);
 });
 
 // ── safety gates ───────────────────────────────────────────────────────────
