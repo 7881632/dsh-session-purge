@@ -640,7 +640,7 @@ async function boot(services, home) {
     // Let the fire-and-forget boot maintenance settle before the first call.
     await new Promise((resolve) => setTimeout(resolve, 25));
 
-    const call = async (method, path, body) => {
+    const call = async (method, path, body, options = {}) => {
         const route = routes.get(path);
         assert.ok(route !== undefined, `route ${path} must be registered`);
         const listeners = new Map();
@@ -661,7 +661,11 @@ async function boot(services, home) {
         };
         const promise = route.handler(request, response);
         await Promise.resolve();
-        if (body !== undefined) listeners.get('data')?.(Buffer.from(JSON.stringify(body)));
+        if (body !== undefined) {
+            // `raw` sends the string as given, so a malformed body can be driven
+            // through the same path a broken client would use.
+            listeners.get('data')?.(Buffer.from(options.raw === true ? body : JSON.stringify(body)));
+        }
         listeners.get('end')?.();
         await promise;
         return { status: response.statusCode, body: response.payload };
@@ -732,6 +736,34 @@ test('the route surface serves the whole recycle-bin flow', async () => {
     assert.equal(response.body.removed, 1);
     response = await call('GET', '/session-purge/trash');
     assert.deepEqual(response.body.entries, []);
+});
+
+test('a malformed or oversized body is answered as the caller\'s fault', async () => {
+    const fx = await fixture();
+    const { call } = await boot(fx.services, fx.home);
+
+    // Malformed JSON: 400 on every POST route, including the one that used to
+    // label it a storage outage (the client rendered that as "server down").
+    for (const path of ['/session-purge/settings', '/session-purge/trash',
+        '/session-purge/restore', '/session-purge/undo']) {
+        const response = await call('POST', path, '{not json', { raw: true });
+        assert.equal(response.status, 400, `${path} must answer 400 for a malformed body`);
+        assert.equal(response.body.code, 'bad-request', `${path} must name the caller's fault`);
+    }
+
+    // Over the 8 KiB cap: 413, and the response must actually reach the client
+    // (destroying the request mid-body used to surface as ECONNRESET).
+    let response = await call('POST', '/session-purge/trash', { sessionId: 'x'.repeat(20_000) });
+    assert.equal(response.status, 413);
+    assert.equal(response.body.code, 'too-large');
+    response = await call('POST', '/session-purge/settings', { retentionDays: 'x'.repeat(9_000) });
+    assert.equal(response.status, 413);
+    assert.equal(response.body.code, 'too-large');
+
+    // And the refusals changed nothing.
+    const settings = await call('GET', '/session-purge/settings');
+    assert.equal(settings.body.settings.retentionDays, 30);
+    assert.equal((await listTrashEntries(fx.ctx)).length, 0);
 });
 
 test('the sweep route honours the auto-clean switch', async () => {

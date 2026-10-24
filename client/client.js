@@ -119,6 +119,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"error.conflict": "该会话已存在，无法复原",
 			"error.origin": "拒绝跨源请求",
 			"error.bad-request": "请求格式错误",
+			"error.too-large": "请求内容过大",
 			"error.internal": "内部错误",
 			"error.fallback": "操作失败"
 		},
@@ -209,6 +210,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"error.conflict": "That session already exists and cannot be restored",
 			"error.origin": "Cross-origin request rejected",
 			"error.bad-request": "Malformed request",
+			"error.too-large": "Request body is too large",
 			"error.internal": "Internal error",
 			"error.fallback": "Operation failed"
 		}
