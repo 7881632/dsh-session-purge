@@ -398,6 +398,11 @@ test('the sweep deletes only entries past the retention window', async () => {
 
 test('turning auto-clean off stops the sweep entirely', async () => {
     const fx = await fixture();
+    // A real sweep first, so there is bookkeeping to compare against.
+    assert.equal((await sweepTrash(fx.ctx, { reason: 'before' })).ok, true);
+    const statePath = join(fx.home, 'session-purge', 'trash', '.state.json');
+    const baseline = JSON.parse(await readFile(statePath, 'utf8')).lastSweepAt;
+
     await writeSettings(fx.ctx, { autoClean: false });
     await trashSession(fx.ctx, fx.sessionId);
     const [entry] = await listTrashEntries(fx.ctx);
@@ -411,6 +416,11 @@ test('turning auto-clean off stops the sweep entirely', async () => {
     const result = await sweepTrash(fx.ctx, { reason: 'test' });
     assert.deepEqual(result, { ok: true, removed: 0, failed: [], skipped: 'disabled', reason: 'test' });
     assert.equal((await listTrashEntries(fx.ctx)).length, 1);
+    // A skipped sweep must leave the bookkeeping alone: rewriting lastSweepAt
+    // would make the settings page claim a sweep that never ran.
+    const after = JSON.parse(await readFile(statePath, 'utf8'));
+    assert.equal(after.lastSweepAt, baseline);
+    assert.equal(after.lastSweepRemoved, 0);
 });
 
 // ── crash recovery ─────────────────────────────────────────────────────────
