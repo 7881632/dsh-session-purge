@@ -6,3 +6,4 @@ node_modules/
 # isolated DSH install and evidence used by the 0.2.1 compatibility audit
 .compat-run/
 tools/.*.json
+.workbuddy/
