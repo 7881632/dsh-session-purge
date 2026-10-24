@@ -64,6 +64,13 @@ node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 
   夹具在别处时传 `-SourceHome <path>`。插件目录按脚本位置推导，仓库搬到哪都不用改；
   第三方主题 `dsh-nord` 缺失只跳过对应断言，不影响实例启动。
 
+**pnpm 装不上时的兜底**：没开 Windows 开发者模式的机器上，普通用户没有 symlink 权限，
+pnpm 会在建 store 索引时直接 `EPERM: operation not permitted, symlink`（`pnpm install`
+和 `corepack pnpm` 都一样，锁文件里的 11.28.5 也救不了）。探针并不需要整棵依赖树，只要
+`playwright` 能解析到、以及 `react@18.3.1` / `react-dom@18.3.1` 的 UMD 两份文件（外加仓库里
+本来就有的主题 CSS）——用 npm 把这三样装进 DSH 源码树的 `node_modules` 即可跑渲染探针；
+`bin-live-probe.mjs` 只需要 `playwright`。
+
 Windows 上 `tools/trash.test.mjs` 的收尾清理偶尔会对 symlink/junction 目录报 `ENOTEMPTY`；
 用例断言仍是 32/32 通过，报错来自清理测试自己创建的临时目录，不影响仓库与发布。
 

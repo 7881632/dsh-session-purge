@@ -66,6 +66,18 @@ for (const label of ['继续', '稍后配置', 'Continue', 'Configure later']) {
 }
 await page.waitForTimeout(1500);
 
+// The start gate ("log in / add an API key") is not what this probe tests, but it
+// covers the whole app with a modal mask, so a click on any sidebar icon times out
+// with "mask intercepts pointer events". Escape closes it without touching state;
+// a home that already has usable credentials never shows it.
+for (const label of ['开始使用', 'Get started']) {
+    const gate = page.locator(`[role="dialog"][aria-label="${label}"]`);
+    if (await gate.count() > 0) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(600);
+    }
+}
+
 // ── 1. the sidebar entry ───────────────────────────────────────────────────
 
 const sidebar = await page.evaluate(() => {
