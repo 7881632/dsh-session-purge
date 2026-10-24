@@ -15,7 +15,7 @@
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, relative, win32 } from 'node:path';
 import { after, test } from 'node:test';
@@ -508,6 +508,35 @@ test('the boot queue keeps a still-held deletion and finishes the rest', async (
     assert.equal(await exists(fx.sessionDir), true, 'the held session must still be on disk');
     assert.equal(await exists(otherDir), false, 'the finished one really moved into the bin');
     assert.equal((await listTrashEntries(fx.ctx)).length, 1);
+});
+
+test('a session left on both sides of an interrupted move is named, not swallowed', async () => {
+    const fx = await fixture();
+    assert.equal((await trashSession(fx.ctx, fx.sessionId)).ok, true);
+    const [entry] = await listTrashEntries(fx.ctx);
+    const bin = join(fx.home, 'session-purge', 'trash');
+    const payload = join(bin, entry.trashId);
+    const metaPath = join(bin, `${entry.trashId}.json`);
+    // The cross-volume window: the copy is published, the source has not been
+    // removed yet, and the metadata still says `moving`.
+    await cp(payload, fx.sessionDir, { recursive: true });
+    await writeFile(metaPath, JSON.stringify({ ...entry, status: 'moving' }), 'utf8');
+
+    await recoverTrash(fx.ctx);
+    assert.equal(await exists(payload), true, 'the published copy stays in the bin');
+    assert.equal(await exists(fx.sessionDir), true,
+        'the leftover source is never deleted behind the user back');
+
+    // Both actions must name the state instead of pretending to work: `conflict`
+    // on restore (the folder is there) and `duplicate` on delete (it used to be
+    // a silent `already`, which left a row the panel could never remove).
+    assert.deepEqual(await restoreSession(fx.ctx, fx.sessionId), { ok: false, code: 'conflict' });
+    assert.deepEqual(await trashSession(fx.ctx, fx.sessionId), { ok: false, code: 'duplicate' });
+
+    // The way out: drop the bin copy, then delete the live one again.
+    assert.equal((await purgeSession(fx.ctx, fx.sessionId)).ok, true);
+    assert.equal((await trashSession(fx.ctx, fx.sessionId)).mode, 'trashed');
+    assert.equal(await exists(fx.sessionDir), false);
 });
 
 // ── safety gates ───────────────────────────────────────────────────────────
