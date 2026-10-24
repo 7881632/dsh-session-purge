@@ -391,6 +391,37 @@ test('emptying the bin clears the list once confirmed', async () => {
     assert.equal(BIN.binStore.get().confirm, null);
 });
 
+test('a partly failed "empty" keeps the rows it could not remove', async () => {
+    resetStore();
+    const now = new Date().toISOString();
+    BIN.binStore.set({
+        open: true,
+        entries: [
+            { id: 'session-a', trashId: 't-1', deletedAt: now, sizeBytes: 5 },
+            { id: 'session-b', trashId: 't-2', deletedAt: now, sizeBytes: 7 },
+        ],
+        totalBytes: 12,
+    });
+    BIN.requestBinEmpty();
+    // The host processed the batch but reports one entry it could not purge
+    // (a hand-edited payload escaping the bin is the real-world case).
+    stubFetch({
+        '/session-purge/empty': {
+            status: 200,
+            body: { ok: true, removed: 1, freedBytes: 5, failed: [{ trashId: 't-2', code: 'unsupported' }] },
+        },
+    });
+    await BIN.confirmBinAction();
+
+    const state = BIN.binStore.get();
+    assert.deepEqual(state.entries.map((entry) => entry.id), ['session-b'],
+        'the failed entry must stay visible');
+    assert.equal(state.totalBytes, 7, 'the footer stops counting what was reclaimed');
+    assert.equal(state.confirm, null);
+    assert.equal(state.notice, '有 1 个会话未能删除，已保留在列表中');
+    assert.equal(state.rowErrors['session-b'], '存储后端不支持该操作，或无法确认会话目录');
+});
+
 test('the policy line follows the host settings, and hides when they are unknown', () => {
     resetStore();
     assert.equal(BIN.binPolicyText(), null);

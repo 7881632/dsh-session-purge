@@ -552,6 +552,47 @@ test('purge refuses a payload that resolves outside the bin', async (t) => {
     assert.equal(await exists(join(outside, SESSION_LOG)), true);
 });
 
+test('emptying the bin reports the entries it could not purge', async (t) => {
+    const fx = await fixture();
+    // One ordinary entry the batch can remove…
+    assert.equal((await trashSession(fx.ctx, fx.sessionId)).ok, true);
+    // …and one whose payload resolves outside the bin, which purge must refuse.
+    // The aggregate has to name it instead of reporting a clean sweep: the panel
+    // keeps exactly the rows listed here.
+    const outside = join(fx.home, 'outside-victim');
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, SESSION_LOG), 'x', 'utf8');
+    const trashId = makeTrashId();
+    const bin = join(fx.home, 'session-purge', 'trash');
+    await writeFile(join(bin, `${trashId}.json`), JSON.stringify({
+        schema: 1,
+        trashId,
+        id: 'session-99999999-8888-7777-6666-555555555555',
+        title: 'escaped',
+        cwd: null,
+        originalDir: join(fx.sessionsRoot, '--p--', 'session-99999999-8888-7777-6666-555555555555'),
+        sessionsRoot: fx.sessionsRoot,
+        deletedAt: new Date().toISOString(),
+        sizeBytes: 1,
+        wasArchived: false,
+        status: 'trashed',
+    }), 'utf8');
+    try {
+        await symlink(outside, join(bin, trashId), process.platform === 'win32' ? 'junction' : 'dir');
+    }
+    catch {
+        t.skip('linking directories is not permitted on this host');
+        return;
+    }
+
+    const result = await emptyTrash(fx.ctx);
+    assert.equal(result.ok, true);
+    assert.equal(result.removed, 1);
+    assert.deepEqual(result.failed, [{ trashId, code: 'unsupported' }]);
+    assert.deepEqual((await listTrashEntries(fx.ctx)).map((entry) => entry.trashId), [trashId],
+        'the entry that could not be purged is still there to be retried');
+});
+
 test('the permanent-delete path still removes the directory it located', async () => {
     // The recycle bin shares the locate helper with `removeSessionLog`; this
     // pins the permanent path so a refactor of that helper cannot silently

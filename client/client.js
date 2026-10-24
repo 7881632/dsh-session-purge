@@ -68,6 +68,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.loadFailed": "读取回收站失败",
 			"bin.retry": "重试",
 			"bin.footer": "共 {n} 个会话 · 占用 {size}",
+			"bin.emptyPartial": "有 {n} 个会话未能删除，已保留在列表中",
 			"bin.swept": "已自动清理 {n} 个过期会话",
 			"bin.policyOn": "自动清理：保留 {days} 天",
 			"bin.policyOff": "自动清理：已关闭",
@@ -157,6 +158,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"bin.loadFailed": "Could not read the recycle bin",
 			"bin.retry": "Retry",
 			"bin.footer": "{n} sessions · {size}",
+			"bin.emptyPartial": "{n} session(s) could not be deleted and stay in the list",
 			"bin.swept": "Auto-cleaned {n} expired sessions",
 			"bin.policyOn": "Auto-clean: keep {days} days",
 			"bin.policyOff": "Auto-clean: off",
@@ -600,6 +602,23 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		binStore.set({ confirm: null });
 	}
 
+	/**
+	 * Sum the sizes the host reported for these rows.
+	 *
+	 * The footer's byte count comes from the last full read, so every list edit
+	 * has to recompute it from the rows that remain — otherwise "共 N 个会话 ·
+	 * 占用 X" keeps advertising space that a purge has already reclaimed.
+	 */
+	function totalOfRows(entries) {
+		var total = 0;
+		for (var i = 0; i < entries.length; i++) {
+			if (typeof entries[i].sizeBytes === "number" && entries[i].sizeBytes > 0) {
+				total += entries[i].sizeBytes;
+			}
+		}
+		return total;
+	}
+
 	function confirmBinAction() {
 		var confirm = binStore.get().confirm;
 		if (confirm === null || confirm.busy === true) return;
@@ -619,13 +638,47 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				return;
 			}
 			if (confirm.kind === "empty") {
-				binStore.set({ confirm: null, entries: [], totalBytes: 0, notice: null });
+				// "Emptied" is a batch, and a batch can partly fail: the host names
+				// every entry it could not remove in `failed` (ok:true only means the
+				// request ran). Clearing the list regardless would hide those rows
+				// until the panel is reopened, so keep exactly the ones it reported.
+				var failedCodes = {};
+				var failedList = Array.isArray(body.failed) ? body.failed : [];
+				for (var f = 0; f < failedList.length; f++) {
+					var failure = failedList[f];
+					if (failure === null || failure === undefined) continue;
+					if (typeof failure.trashId !== "string") continue;
+					failedCodes[failure.trashId] = failure.code;
+				}
+				// Nothing failed → the whole list is gone. Otherwise keep exactly the
+				// rows the host named.
+				var kept = [];
+				if (failedList.length > 0) {
+					kept = binStore.get().entries.filter(function (candidate) {
+						// An entry that cannot be matched to the report is kept: a row
+						// that stays visible is recoverable, one that disappears is not.
+						if (typeof candidate.trashId !== "string") return true;
+						return failedCodes[candidate.trashId] !== undefined;
+					});
+				}
+				var rowErrors = Object.assign({}, binStore.get().rowErrors);
+				for (var k = 0; k < kept.length; k++) {
+					var code = failedCodes[kept[k].trashId];
+					if (code !== undefined) rowErrors[kept[k].id] = binErrorText(code);
+				}
+				binStore.set({
+					confirm: null,
+					entries: kept,
+					totalBytes: totalOfRows(kept),
+					rowErrors: rowErrors,
+					notice: kept.length > 0 ? tr("bin.emptyPartial", { n: kept.length }) : null
+				});
 				return;
 			}
 			var entries = binStore.get().entries.filter(function (candidate) {
 				return candidate.id !== confirm.id;
 			});
-			binStore.set({ confirm: null, entries: entries });
+			binStore.set({ confirm: null, entries: entries, totalBytes: totalOfRows(entries) });
 		}, function () {
 			binStore.set({
 				confirm: Object.assign({}, confirm, { busy: false, error: tr("bin.loadFailed") })
