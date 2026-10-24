@@ -2,8 +2,9 @@
 
 面向维护者。终端用户请读 [README.md](./README.md)。
 
-当前发布：**0.5.2**（2026-10-18，npm 与 GitHub Release）。`main` 上另有尚未发布的设置页增强
-（导航项垃圾桶图标、页脚版本号、npm 更新提示），下一次发布（建议 `--bump minor`）时带上。
+当前发布：**0.5.3**（2026-10-21，npm 与 GitHub Release；设置页增强已随该版发布）。
+`main` 上另有尚未发布的一轮失败路径修复（重启队列、清空部分失败、请求体超限、
+跳过清理仍记账、跨卷重复会话），下一次发布时带上（建议 `--bump patch`）。
 
 ## 代码结构
 
@@ -110,8 +111,8 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 **版本号归发布脚本管**（`--bump` 会跑 `npm version`、提交、打 tag）。特性提交里
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
-0.5.2 之后 `main` 上还有未发布改动；发布前先确认工作树干净，再按需要
-`npm run release -- --bump patch --smoke`（新特性建议 `minor`，修文档/探针用 `patch`）。
+0.5.3 之后 `main` 上还有未发布改动（失败路径修复，全在 `fix(...)` 提交里）；发布前先确认
+工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
 
 ## 跨版本兼容
 
