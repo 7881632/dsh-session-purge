@@ -134,8 +134,8 @@
 - 菜单项：`移入回收站` / `Move to recycle bin`，插在 `归档会话`（或 `取消归档`）之后，**改为中性/警示色**（不再是危险红——动作可逆）；沿用现有 DOM 注入与键帽清理逻辑。
 - 确认弹窗：「移入回收站」，正文 `将把「X」移入回收站，可随时复原。`，目录行，提示行 `回收站自动清理：保留 30 天（或"已关闭"）`；按钮 `取消` / `移入回收站`。
 - 运行中的会话：沿用现有闸门——`live`（正在跑）与 `busy`（压缩/收尾中）**拒绝**并给出原因文案；无法安全释放时进"重启后移入回收站"队列。
-- 成功：弹窗转为成功态 `已移入回收站「X」。`，主按钮 `知道了`，附次按钮 `打开回收站`。
-- 队列态的文案：`该会话暂驻内存，已转为重启后移入回收站。`
+- 成功：确认弹窗立即关闭，改由**顶部 toast** 报告 `已移入回收站「X」。`（`role=alert`，保持约 6 秒后淡出），toast 内附 `打开回收站` 动作。成功不需要用户再决策，不应为此多收一次点击；与宿主自身「归档 → toast 带撤销」的惯例一致。
+- 队列态的文案：`该会话暂驻内存，已转为重启后移入回收站。`（队列态、无法定位与错误**留在弹窗内**——它们需要用户阅读并决策，几秒即逝的横幅承载不了。）
 
 ### 5.4 复原流程
 
@@ -222,7 +222,6 @@
 | `dialog.trash.policy` | 回收站自动清理：保留 {days} 天 | Auto-clean: keep for {days} days |
 | `dialog.trash.policyOff` | 回收站自动清理：已关闭 | Auto-clean: off |
 | `dialog.trash.done` | 已移入回收站「{name}」。 | Moved “{name}” to the recycle bin. |
-| `dialog.trash.doneTitle` | 已移入回收站 | Moved to recycle bin |
 | `dialog.trash.openBin` | 打开回收站 | Open recycle bin |
 | `dialog.trash.queued` | 该会话暂驻内存，已转为重启后移入回收站。 | This session is resident in memory; it will move to the recycle bin on restart. |
 | `bin.title` | 回收站 | Recycle bin |

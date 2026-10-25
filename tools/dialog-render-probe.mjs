@@ -1,9 +1,10 @@
 /**
  * Render the plugin's REAL move-to-bin dialog — real React, the plugin's own
  * stylesheet, the shipped DSH theme tokens — and report the computed colours of
- * both the confirmation (neutral) and the success report. Exit-gate for the
- * dialog variants: catches a wrong token, a typo'd class name, or a variant that
- * silently never applies. Complements the static assertions in
+ * the confirmation (neutral) and, after driving its own confirm handler with a
+ * stubbed success reply, the success toast that replaces the closed dialog.
+ * Exit-gate for both surfaces: catches a wrong token, a typo'd class name, or a
+ * variant that silently never applies. Complements the static assertions in
  * helpers.test.mjs, which cannot see computed styles.
  *
  * Needs the DSH source checkout (for React and the theme CSS), not a running
@@ -71,27 +72,12 @@ writeFileSync(join(dir, 'index.html'), `<!doctype html>
   window.__effects = effects;
   var Dialog = loaded.__test.TrashConfirmDialog;
   var root = ReactDOM.createRoot(document.getElementById('root'));
-  root.render(React.createElement('div', null,
-    React.createElement(Dialog, {
-      key: 'confirm',
-      target: { id: 'session-probe', title: '探测会话', cwd: 'D:\\\\some\\\\project' },
-      policy: '回收站自动清理：保留 30 天',
-      onClose: function () {},
-      onOpenBin: function () {}
-    }),
-    React.createElement(Dialog, {
-      key: 'success',
-      target: { id: 'session-probe', title: '探测会话' },
-      onClose: function () {}
-    })
-  ));
-  // Second render pass: one dialog already finished (the success report).
-  window.__finishSecond = function () {
-    root.render(React.createElement('div', null,
-      React.createElement(Dialog, { key: 'confirm', target: { id: 's1', title: '探测会话' }, onClose: function () {} }),
-      React.createElement(Dialog, { key: 'success', target: { id: 's2', title: '另一个会话' }, onClose: function () {} })
-    ));
-  };
+  root.render(React.createElement(Dialog, {
+    key: 'confirm',
+    target: { id: 'session-probe', title: '探测会话', cwd: 'D:\\\\some\\\\project' },
+    policy: '回收站自动清理：保留 30 天',
+    onClose: function () { window.__dialogClosed = true; root.render(null); }
+  }));
 </script>
 </body></html>
 `);
@@ -130,6 +116,22 @@ const readDialogs = () => page.evaluate(() => [...document.querySelectorAll('.sd
         buttons: buttons.map((b) => ({ text: b.textContent, className: b.className, background: getComputedStyle(b).backgroundColor })),
     };
 }));
+/** The success banner: shape, resolved colours, and its one action. */
+const readToasts = () => page.evaluate(() => [...document.querySelectorAll('.sd-toast')].map((d) => {
+    const icon = d.querySelector('.sd-toast-icon');
+    const action = d.querySelector('.sd-toast-action');
+    const style = getComputedStyle(d);
+    return {
+        role: d.getAttribute('role'),
+        text: d.querySelector('.sd-toast-text')?.textContent ?? '',
+        iconColor: icon === null ? null : getComputedStyle(icon).color,
+        iconPath: icon?.querySelector('path')?.getAttribute('d') ?? null,
+        actionLabel: action?.textContent ?? null,
+        actionPointerEvents: action === null ? null : getComputedStyle(action).pointerEvents,
+        animationName: style.animationName,
+        hold: style.getPropertyValue('--sd-toast-hold').trim(),
+    };
+}));
 const readTokens = () => page.evaluate(() => {
     const s = getComputedStyle(document.body);
     return {
@@ -143,11 +145,12 @@ const report = {
     pluginStylesInstalled: await page.evaluate(() => document.querySelector('style[data-plugin-css="dsh-session-purge/panel.css"]') !== null),
     pluginEffects: await page.evaluate(() => window.__effects),
     pageErrors,
-    light: { tokens: await readTokens(), dialogs: await readDialogs() },
+    light: { tokens: await readTokens(), dialogs: await readDialogs(), toasts: await readToasts() },
 };
 
 // The success report only exists once a move completes, so drive the dialog's
-// own confirm handler with a stubbed success reply from the host route.
+// own confirm handler with a stubbed success reply from the host route. The
+// dialog must then be gone, and the toast must be up in its place.
 await page.evaluate(async () => {
     const realFetch = window.fetch;
     window.fetch = async () => ({ json: async () => ({ ok: true, mode: 'trashed', name: '探测会话' }) });
@@ -157,14 +160,15 @@ await page.evaluate(async () => {
     window.fetch = realFetch;
 });
 await page.waitForTimeout(800);
-report.light.afterConfirm = await readDialogs();
+report.light.dialogClosedAfterConfirm = await page.evaluate(() => window.__dialogClosed === true && document.querySelectorAll('.sd-dlg').length === 0);
+report.light.afterConfirmToasts = await readToasts();
 
 // The same assertions under the dark palette: the theme file carries both blocks
 // (`body[data-ds-dark-theme]`), and a token that only resolves in one of them
 // would ship half-broken.
 await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', ''));
 await page.waitForTimeout(400);
-report.dark = { tokens: await readTokens(), dialogs: await readDialogs() };
+report.dark = { tokens: await readTokens(), toasts: await readToasts() };
 
 console.log(JSON.stringify(report, null, 2));
 await browser.close();

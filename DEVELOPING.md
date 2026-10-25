@@ -12,7 +12,7 @@
   路由、回收站内核与永久删除逻辑
 - `client/client.js` — 浏览器半：会话行菜单注入 + 侧边栏回收站入口 + 回收站面板 +
   设置面板里的「回收站」页（导航项垃圾桶图标、页脚版本号与 npm 更新提示）+ 确认弹窗
-  （React，无 JSX；UI 原语可选、缺失时自绘）
+  + 移入成功的 toast（React，无 JSX；UI 原语可选、缺失时自绘）
 - `cordis.patch.yml` — bundle 补丁，把插件行插入 profile 合成树
 - `scripts/publish-npm.mjs` — npm 发布流水线（默认只核查）
 - `tools/` — 回归测试（`helpers.test.mjs` 上游适配、`trash.test.mjs` 宿主、`client-bin.test.mjs` 客户端）、
@@ -39,7 +39,7 @@ npm test                              # 回归测试（helpers + trash + client-
 node tools/repro-delete.mjs           # 端到端：永久删除（真实 JSONL 后端 + 真实日志副本）
 node tools/repro-trash.mjs            # 端到端：移入 → 复原（逐字节）→ 真实删除 → 过期清理
 node tools/smoke-install.mjs ./x.tgz  # 隔离 home 里装包冒烟
-node tools/dialog-render-probe.mjs    # 真实 React + 真实主题渲染弹窗，核对配色
+node tools/dialog-render-probe.mjs    # 真实 React + 真实主题渲染确认弹窗与成功 toast，核对配色
 node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态
 node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置页并逐个驱动控件（含版本页脚/更新链接）
 ```

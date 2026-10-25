@@ -12,8 +12,8 @@
 | 里程碑 | 状态 | 落地位置与证据 |
 |---|---|---|
 | **M1 宿主回收站内核** | ✅ 已完成 | `lib/index.js`：`locateSessionDirectory()` 共享定位/安全闸门、`trashSession`/`restoreSession`/`purgeSession`/`emptyTrash`/`sweepTrash`/`recoverTrash`/`trashSummary`/设置读写/串行化 + 9 条路由 + 启动维护与 15 分钟清扫心跳；`tools/trash.test.mjs`（M1 时 27 例，现 32 例）；`tools/repro-trash.mjs` 对**真实 v4 JSONL 后端 + 真实 373 KB 会话副本**跑通 移入 → 列表不含 → 复原（逐字节一致 + 身份校验通过）→ 真实删除 → 过期清理 |
-| **M2 客户端主流程** | ✅ 已完成 | `client/client.js`：侧边栏第 4 个图标（自建 React 根 + primitives `Tooltip`/`IconTrashOutlineRegular` + 运行期复用锚点 className + 覆写 60px 上限）、回收站面板（primitives `Modal`，含空态/列表/分页/逐行复原与真实删除/清空/失败重试）、菜单项「移入回收站」+ 中性确认弹窗 + 成功态「打开回收站」、复原后 `sessions.refresh()`；`tools/client-bin.test.mjs`（M2 时 17 例，现累计 36 例）；`tools/trash-panel-probe.mjs`（真实 React + 主题，**7 种状态**、明暗两套）；`tools/bin-live-probe.mjs`（M2 时 20 项，现 44 个断言点，含"移入后行消失 / 复原后行回来，均不刷新页面"） |
-| **M3 设置页与自动清理 UI** | ✅ 已完成 | `client/client.js`：`settings.section` 注册（可选注入 `slots`，`id: session-purge`，`order 50`，label 用 thunk 跟随语言）+ 设置页（primitives `Switch`/`SegmentedControl`/`Input`，缺失时自绘同语义控件）、每字段独立写入并采纳宿主回值、调度控件随 `autoClean` 锁定、统计行、立即清理、打开回收站；面板策略行变成进入设置页的入口（按 shell 自己的启动按钮的 aria-label）。`tools/settings-render-probe.mjs`（自绘路径逐控件断言，含页脚版本/更新链接）；`tools/bin-live-probe.mjs` 现 44 个断言点，含真 shell + primitives 的设置腿 |
+| **M2 客户端主流程** | ✅ 已完成 | `client/client.js`：侧边栏第 4 个图标（自建 React 根 + primitives `Tooltip`/`IconTrashOutlineRegular` + 运行期复用锚点 className + 覆写 60px 上限）、回收站面板（primitives `Modal`，含空态/列表/分页/逐行复原与真实删除/清空/失败重试）、菜单项「移入回收站」+ 中性确认弹窗 + 成功 toast（带「打开回收站」动作）、复原后 `sessions.refresh()`；`tools/client-bin.test.mjs`（M2 时 17 例，现累计 39 例）；`tools/trash-panel-probe.mjs`（真实 React + 主题，**7 种状态**、明暗两套）；`tools/bin-live-probe.mjs`（M2 时 20 项，现 45 个断言点，含"移入后行消失 / 复原后行回来，均不刷新页面"） |
+| **M3 设置页与自动清理 UI** | ✅ 已完成 | `client/client.js`：`settings.section` 注册（可选注入 `slots`，`id: session-purge`，`order 50`，label 用 thunk 跟随语言）+ 设置页（primitives `Switch`/`SegmentedControl`/`Input`，缺失时自绘同语义控件）、每字段独立写入并采纳宿主回值、调度控件随 `autoClean` 锁定、统计行、立即清理、打开回收站；面板策略行变成进入设置页的入口（按 shell 自己的启动按钮的 aria-label）。`tools/settings-render-probe.mjs`（自绘路径逐控件断言，含页脚版本/更新链接）；`tools/bin-live-probe.mjs` 现 45 个断言点，含真 shell + primitives 的设置腿 |
 | **M4 打磨与发布** | ✅ 已发布 0.5.3 | 2026-10-18 发布 `0.5.2`；2026-10-21 发布 `0.5.3`（设置页导航图标、页脚版本号、npm 更新提示随该版进入 npm 包）。README/README.en/DEVELOPING 已按回收站语义更新，`spec.md` §13 记录已知边界，CI 跑 `tools/*.test.mjs`。0.5.3 之后 `main` 有一轮未发布的失败路径修复（`fix(queue)`/`fix(bin)`/`fix(http)`/`fix(sweep)`/`fix(trash)`） |
 
 M1 期间被真实跑出来的两个缺陷（都已修 + 已加回归）：
@@ -497,8 +497,10 @@ overlay 座位能提供的全部交互保证。`shell.overlay` 版本保留为�
   （`--dsw-alias-state-warn-primary`），键帽清理逻辑不动。
 - 确认弹窗更名为 `TrashConfirmDialog`：请求体 `{ sessionId, title }` 打 `/session-purge/trash`；
   确认按钮改为中性 `sd-dlg-btn-primary`（动作可逆）；策略行来自 `/trash` 返回的 settings；
-  成功态新增次按钮「打开回收站」，并在成功后 `sessions.refresh()` + 刷新面板计数。
-- 成功/排队/定位失败三种终态的配色：绿（成功）与琥珀（排队、定位失败），不再使用危险红。
+  成功即关弹窗、改由顶部 toast 报告（带「打开回收站」动作），并在成功后
+  `sessions.refresh()` + 刷新面板计数。
+- 终态的归属：成功 = toast（无决策，不值得一次点击）；排队 / 定位失败 / 出错 = 留在弹窗
+  （需要用户阅读并决策），配色琥珀，不再使用危险红。
 - **已同步更新** `tools/helpers.test.mjs` 的菜单 fixture 与文案断言（DEVELOPING.md 的硬规矩）。
 
 ### 7.4 设置页注册设计（M3 草稿）
@@ -577,8 +579,8 @@ ctx.inject(['slots'], (scope) => {
 | 保留期 | `retentionDue()` 边界（恰好到期、retention=0、时钟回拨） |
 | 复原目标 | `restoreDestination()`：正常、目标已存在、root 外、缺 cwd |
 | 崩溃恢复 | `moving` × {载荷在/不在} × {原目录在/不在} 四种组合 |
-| 客户端（`tools/client-bin.test.mjs`，36 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持（含清空部分失败时只保留 `failed[]` 点名的行）；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、页脚版本（成功与失败响应）、`compareVersions` 更新判断、npm 检查的成功/静默失败、导航行标记、无 `slots` 时不崩 |
-| 渲染（`tools/dialog-render-probe.mjs`、`tools/trash-panel-probe.mjs`、`tools/settings-render-probe.mjs`） | 真实 React + 真实主题下：确认/成功/排队三态配色；面板 7 种状态、明暗两套；**设置页**逐控件驱动（开关只写 autoClean、保留期写 90、周期写 12、越界回弹、清理报告、打开回收站、关掉自动清理后调度控件锁定、暗色可渲染、页脚分隔线 + 宿主版本 + 更新链接） |
+| 客户端（`tools/client-bin.test.mjs`，39 例） | 锚点优先级与隐藏孪生；`formatBytes`/`formatRelativeTime`（中英）/`displayTitle`/`shortSessionId`；`isExpiringEntry` 跟随实时策略；`refreshBin` 的加载/失败/“已自动清理”提示；复原（成功/缺 cwd/冲突保持行）；永久删除与清空的二次确认与拒绝保持（含清空部分失败时只保留 `failed[]` 点名的行）；**设置页**：保留期选项、统计文案、`pickLabeledButton`、`refreshSettings`/`saveSetting`/`runSweepNow` 的写入与失败、注册参数（id/order/label）、页脚版本（成功与失败响应）、`compareVersions` 更新判断、npm 检查的成功/静默失败、导航行标记、无 `slots` 时不崩 |
+| 渲染（`tools/dialog-render-probe.mjs`、`tools/trash-panel-probe.mjs`、`tools/settings-render-probe.mjs`） | 真实 React + 真实主题下：确认弹窗配色 + 确认后 toast（绿勾、action 可点、hold/淡出变量、明暗两套）；面板 7 种状态、明暗两套；**设置页**逐控件驱动（开关只写 autoClean、保留期写 90、周期写 12、越界回弹、清理报告、打开回收站、关掉自动清理后调度控件锁定、暗色可渲染、页脚分隔线 + 宿主版本 + 更新链接） |
 | 现有回归 | `hasActiveJob`、`diskSessionReport`、`tearDownResident` 全套不得回归 |
 
 ### 8.2 端到端（新增 `tools/repro-trash.mjs`，对标 `repro-delete.mjs`）
@@ -597,7 +599,7 @@ ctx.inject(['slots'], (scope) => {
   渲染出来，在**明暗两套主题**下读计算样式并断言（空态文案、未命名占位、过期提示、底栏统计与策略、
   危险按钮 = error token、暗色卡片颜色不同、**卡片 ≥ 700px 且标题列 ≥ 500px**、
   **一页 50 条 + 「加载更多」点开后 60 条**）。走的是**自绘降级路径**，正是旧代 shell 的表面。
-- `tools/dialog-render-probe.mjs`：确认/成功两态与按钮变体（绿色成功、中性确认、琥珀排队）。
+- `tools/dialog-render-probe.mjs`：确认弹窗（中性确认）与确认后的成功 toast（绿勾 + action），按钮变体（中性确认、琥珀排队、危险红留给面板内删除）。
 - 需要 DSH 源码树（`DSH_REPO`，默认 `D:\deepseek-harness`）。
 
 ### 8.4 隔离实例端到端（`tools/bin-live-probe.mjs`）
@@ -609,16 +611,16 @@ dsh --profile web --no-open --port 3081 --host 127.0.0.1
 node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=..."
 ```
 
-44 个断言点，覆盖只有真 shell 才能证明的东西：图标注入一次且未被裁掉、面板打开不改变 URL、
+45 个断言点，覆盖只有真 shell 才能证明的东西：图标注入一次且未被裁掉、面板打开不改变 URL、
 Escape 可关、行菜单出现「移入回收站」且用 warn token、确认弹窗与中性按钮、
-**移入后侧边栏行消失 / 复原后行回来（都不刷新页面）**、**真实删除与清空的二次确认后宿主条目归零**，
+**移入后侧边栏行消失 / 复原后行回来（都不刷新页面）**、移入成功后弹窗关闭且 toast 报告
+（toast 的「打开回收站」action 直接开面板）、**真实删除与清空的二次确认后宿主条目归零**，
 以及设置腿：面板策略行进入设置页、导航项与四行控件（真 primitives）、**导航行的垃圾桶图标**
 （标记属性 + shell 齿轮隐藏）、**页脚分隔线与宿主版本**、开关/保留期/周期**落库**
 （在页面内 `fetch` 回读宿主状态）、关掉自动清理后调度控件锁定、「立即清理」报告结果、
 「打开回收站」回到面板、无未捕获页面错误。截图落在 `%TEMP%\dsh-bin-live\`。
 
-> 0.5.2 发布前跑过的是 40 项版本；当前脚本已扩到 44 个断言点，新增的导航图标与页脚版本断言
-> 还没有在真实 shell 重跑（本机缺少 Playwright）。下一次发布前应补跑一次。
+> 0.5.2 发布前跑过的是 40 项版本；45 项版本在 toast 改版后于隔离实例全绿（2026-10-25 补跑见下）。
 
 **两条环境事实**（本次调研确认）：
 
@@ -637,7 +639,8 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 
 1. 行菜单 ⋯ 按钮在未悬停时 `visibility:hidden`：必须直接 `dispatchEvent(new MouseEvent('click'))`。
 2. 会话标题可能重复（同一 home 里有多个同名行）：断言要用**计数**而不是"标题还在不在"。
-3. 成功弹窗是**故意保持打开**的（显示「打开回收站」），断言 `.sd-dlg` 不存在是错的。
+3. 移入成功后弹窗已关闭、成功报告在 `.sd-toast` 里（带「打开回收站」action，且会自动淡出）：
+   断言 `.sd-dlg` 还在是错的，点击 `.sd-toast-action` 即可开面板。
 4. 复原后的提示文案里也含标题，"还在不在"要只看 `.sd-bin-row-title`。
 5. 隔离 home 若没有可用凭据，进站就会被「开始使用 / Get started」登录门挡住：整页 mask 会让
    侧边栏图标的 `click` 一直超时（`mask intercepts pointer events`），而 §1 的 DOM 断言照样全绿。
@@ -677,13 +680,13 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 | `lib/index.js` | + 回收站内核（trash/restore/purge/empty/sweep/崩溃恢复）、设置读写、新路由、`pending` 语义、`/state` 扩展（M1 已落地，~+1150 行） |
 | `client/client.js` | + 词典全量替换、primitives 可选加载、回收站 helpers/store/actions、侧边栏注入、面板（`TrashPanelHost`/`TrashPanelBody`）、`TrashConfirmDialog`、`__test` 导出扩展（M2 已落地，~+700 行） |
 | `.github/workflows/ci.yml` | 回归步骤改为 `node --test tools/*.test.mjs`（覆盖两个新套件） |
-| `tools/helpers.test.mjs` | 菜单 fixture 与文案断言同步到新词典；弹窗变体断言改为 success/warn + primary |
+| `tools/helpers.test.mjs` | 菜单 fixture 与文案断言同步到新词典；弹窗终态断言钉「成功离场改 toast、其余留弹窗」的契约 |
 | `tools/trash.test.mjs` | 新增：宿主回收站 32 例（路径安全/元数据/设置/保留期/崩溃恢复/路由表/请求体超限/重启队列） |
-| `tools/client-bin.test.mjs` | 新增并持续扩展：客户端 36 例（锚点/格式化/过期/面板 store 流程/设置页写入与注册/页脚版本/更新比较/导航行标记/清空部分失败） |
+| `tools/client-bin.test.mjs` | 新增并持续扩展：客户端 39 例（锚点/格式化/过期/面板 store 流程/设置页写入与注册/页脚版本/更新比较/导航行标记/清空部分失败） |
 | `tools/repro-trash.mjs` | 新增：真实后端端到端（移入 → 复原逐字节 → 删除 → 清理） |
 | `tools/trash-panel-probe.mjs` | 新增：面板渲染探针（7 状态 × 明暗两套） |
 | `tools/settings-render-probe.mjs` | 新增：设置页渲染探针（自绘路径逐控件驱动，含页脚版本/更新链接） |
-| `tools/bin-live-probe.mjs` | 新增：隔离实例端到端探针（现 44 个断言点，含设置腿、导航图标与页脚版本） |
+| `tools/bin-live-probe.mjs` | 新增：隔离实例端到端探针（现 45 个断言点，含设置腿、导航图标与页脚版本） |
 | `tools/dialog-render-probe.mjs` / `dialog-probe.mjs` | 组件改名与新按钮变体同步 |
 | `package.json` | **不新增依赖**（primitives 是平台 seed 词）；`dsh.client.inject` 保持不变；版本由发布脚本管理 |
 | `README.md` / `README.en.md` | 已按回收站语义更新；版本状态指向 0.5.3，并标注 `main` 上未发布的失败路径修复 |

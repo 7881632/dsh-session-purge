@@ -259,24 +259,33 @@ if (rowInfo.count > 0) {
             const titleOf = (label) => label.replace(/^会话“/, '').replace(/”的操作$/, '')
                 .replace(/^Session actions for /, '');
             const dialog = document.querySelector('.sd-dlg');
+            const toast = document.querySelector('.sd-toast');
             return {
                 remaining: triggers.filter((button) => titleOf(button.getAttribute('aria-label')) === title).length,
-                success: dialog !== null && /已移入回收站|Moved .* to the recycle bin/.test(dialog.textContent),
                 dialogOpen: dialog !== null,
+                toastRole: toast?.getAttribute('role') ?? null,
+                toastText: toast?.querySelector('.sd-toast-text')?.textContent ?? null,
+                toastAction: toast?.querySelector('.sd-toast-action')?.textContent ?? null,
             };
         }, trashedTitle);
         check('the trashed session leaves the sidebar without a reload',
             afterTrash.remaining === rowInfo.firstTitleCount - 1,
             `${rowInfo.firstTitleCount} -> ${afterTrash.remaining} rows titled "${trashedTitle}"`);
-        check('the confirmation reports the move as a success',
-            afterTrash.success === true);
+        check('the confirmation dialog is gone once the move lands',
+            afterTrash.dialogOpen === false);
+        // Success reports as a toast, not a second modal: role=alert, the move,
+        // and the bin one click away on the banner itself.
+        check('a toast reports the move, with the bin as its action',
+            afterTrash.toastRole === 'alert'
+            && /已移入回收站|Moved .* to the recycle bin/.test(afterTrash.toastText ?? '')
+            && /打开回收站|Open recycle bin/.test(afterTrash.toastAction ?? ''),
+            JSON.stringify(afterTrash));
+        await page.screenshot({ path: join(shots, '03-confirm.png') });
 
-        // The success report stays open on purpose; close it before driving the bin.
-        if (afterTrash.dialogOpen) {
-            await page.keyboard.press('Escape');
-            await page.waitForTimeout(500);
-        }
-        await page.click('[data-sd-trash-slot] button');
+        // The banner's own action opens the bin — the same next step the old
+        // success dialog offered, minus the mandatory click. (The sidebar
+        // icon's open path is section 2's assertion.)
+        await page.click('.sd-toast-action');
         await page.waitForTimeout(1200);
         const listed = await page.evaluate(() => {
             const dialog = document.querySelector('[role="dialog"][aria-label="回收站"], [role="dialog"][aria-label="Recycle bin"]');
