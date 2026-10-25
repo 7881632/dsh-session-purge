@@ -289,7 +289,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-head-count{font-size:11px;font-weight:400;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-bin-head-close{margin-left:auto;padding:2px 6px;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:14px;line-height:1;cursor:pointer}",
 		".sd-bin-head-close:hover{background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-bin-list{margin-top:10px;min-height:56px;overflow:auto;flex:1 1 auto}",
+		".sd-bin-body{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden}",
+		// The list must scroll inside whatever container the shell hands us: the
+		// Modal primitive does not necessarily pass its height constraint down,
+		// so give the list its own viewport-relative ceiling as a fallback.
+		".sd-bin-list{margin-top:10px;min-height:56px;max-height:calc(100vh - 280px);overflow:auto;flex:1 1 auto}",
 		".sd-bin-row{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18))}",
 		".sd-bin-row:last-child{border-bottom:none}",
 		".sd-bin-row-main{flex:1 1 auto;min-width:0}",
@@ -1837,7 +1841,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 		if (state.confirm !== null) children.push(renderBinConfirm(state.confirm));
 		children.push(renderBinFooter(state, entries.length));
-		return React.createElement("div", null, children);
+		return React.createElement("div", { className: "sd-bin-body" }, children);
 	}
 
 	/**
