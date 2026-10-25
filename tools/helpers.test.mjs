@@ -557,41 +557,48 @@ test('client dictionaries stay in sync (a missing key renders as the raw key)', 
 
 // ── terminal dialog semantics ──────────────────────────────────────────────
 //
-// The dialog serves two moments: "confirm this irreversible delete" (danger)
-// and "it is done" (success). They must not look alike, or the report reads as
-// another warning.
+// A completed move is the one outcome that needs no further decision, so it
+// leaves the dialog for a top-center toast (the shell's own archive toast is
+// the convention). Every other terminal state — queued, nothing located, an
+// error — still describes an operation to treat with care, so it stays in the
+// dialog under the amber warning look.
 
-/** The dialog's JSX-ish render body, which is where the variant classes are chosen. */
-const dialogRender = clientSrc.slice(clientSrc.indexOf('var succeeded ='), clientSrc.indexOf('// ── module state bound in apply()'));
+/** The dialog's render body, which is where the terminal variants are chosen. */
+const dialogRender = clientSrc.slice(clientSrc.indexOf('function TrashConfirmDialog'), clientSrc.indexOf('// ── module state bound in apply()'));
 
-test('a completed move switches the dialog to its success variant', () => {
-    assert.match(dialogRender, /succeeded\s*=\s*done !== null/u);
-    assert.match(dialogRender, /succeeded \? "sd-dlg sd-dlg-success" : "sd-dlg"/u);
-    // The terminal button: green once it worked, amber for the queued /
-    // nothing-located outcomes (neither is a success nor a destructive confirm).
-    assert.match(dialogRender, /succeeded \? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-warn"/u);
+test('a completed move leaves the dialog for the toast; the rest keeps the warn look', () => {
+    // Success closes the dialog first — the banner replaces it, not stacks on
+    // it — then reports through showTrashToast.
+    assert.match(dialogRender, /onClose\(\);\s*\n\s*showTrashToast\(outcome\.name\);/u);
+    // The terminal button: amber for the queued / nothing-located outcomes
+    // (neither is a success nor a destructive confirm). No green dialog
+    // variant may come back — success no longer renders as a modal at all.
+    assert.match(dialogRender, /className: "sd-dlg-btn sd-dlg-btn-warn"/u);
+    assert.equal(dialogRender.includes('sd-dlg-btn-success'), false);
     // Moving a session to the bin is reversible, so the confirming button is
     // neutral — the destructive colour now belongs to the bin's own action.
     assert.match(dialogRender, /className: "sd-dlg-btn sd-dlg-btn-primary"/u);
 });
 
-test('the success variant is green and the danger variant stays red', () => {
-    assert.match(clientSrc, /\.sd-dlg-btn-success\{background:var\(--dsw-alias-state-success-primary/u);
-    assert.match(clientSrc, /\.sd-dlg-success \.sd-dlg-title \.sd-icon\{color:var\(--dsw-alias-state-success-primary/u);
+test('the success green lives on the toast icon, and danger stays red', () => {
+    assert.match(clientSrc, /\.sd-toast \.sd-toast-icon\{display:flex;flex:none;color:var\(--dsw-alias-state-success-primary/u);
     // The confirmation keeps the destructive colour.
     assert.match(clientSrc, /\.sd-dlg-btn-danger\{background:var\(--dsw-alias-state-error-primary/u);
-    // The two variants must not share a colour: that was the reported bug.
-    const green = clientSrc.slice(clientSrc.indexOf('.sd-dlg-btn-success'), clientSrc.indexOf('.sd-dlg-btn-success') + 160);
-    assert.equal(green.includes('state-error-primary'), false, 'the success button went back to red');
+    // The two must not share a colour: that was the reported bug.
+    const green = clientSrc.slice(clientSrc.indexOf('.sd-toast .sd-toast-icon'), clientSrc.indexOf('.sd-toast .sd-toast-icon') + 160);
+    assert.equal(green.includes('state-error-primary'), false, 'the toast icon went red');
 });
 
-test('the success heading uses the tick icon and its own title key', () => {
-    assert.match(dialogRender, /__html: succeeded \? OK_ICON : ICON/u);
-    assert.match(dialogRender, /titleKey = succeeded \? "dialog\.trash\.doneTitle" : "dialog\.trash\.title"/u);
+test('the toast carries the tick icon, and the success-dialog title key is gone', () => {
+    // The banner, not the dialog, now renders the tick.
+    const banner = clientSrc.slice(clientSrc.indexOf('function ToastBanner'), clientSrc.indexOf('function showTrashToast'));
+    assert.match(banner, /dangerouslySetInnerHTML: \{ __html: OK_ICON \}/u);
     // OK_ICON must be a distinct drawing, not a recoloured bin.
     const ok = clientSrc.match(/var OK_ICON = '([^']+)'/u);
     assert.notEqual(ok, null);
     assert.equal(ok[1].includes('M2.5 4.2h11'), false, 'OK_ICON still draws the bin');
+    // The old success-dialog title must not survive in either dictionary.
+    assert.equal(clientSrc.includes('dialog.trash.doneTitle'), false);
 });
 
 // ── session-row menu detection across DSH generations ──────────────────────

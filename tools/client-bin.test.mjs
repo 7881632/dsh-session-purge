@@ -689,3 +689,38 @@ test('a shell without the settings domain leaves the plugin working', () => {
     });
     assert.equal(typeof BIN.SettingsSection, 'function');
 });
+
+// ── move-to-bin outcome → toast ────────────────────────────────────────────
+
+test('a trashed response leaves the dialog to the toast, with the display name', () => {
+    // The title the DOM capture found wins; the response's own name is the
+    // fallback, and the bare id is the last resort.
+    assert.deepEqual(
+        BIN.trashOutcome({ ok: true, mode: 'trashed', name: 'Host Name' }, { id: 's1', title: 'Captured' }),
+        { kind: 'trashed', name: 'Captured' });
+    assert.deepEqual(
+        BIN.trashOutcome({ ok: true, mode: 'trashed', name: 'Host Name' }, { id: 's1' }),
+        { kind: 'trashed', name: 'Host Name' });
+    assert.deepEqual(
+        BIN.trashOutcome({ ok: true, mode: 'trashed' }, { id: 's1' }),
+        { kind: 'trashed', name: 's1' });
+});
+
+test('a queued or refused /trash response keeps the dialog open', () => {
+    assert.deepEqual(BIN.trashOutcome({ ok: true, mode: 'queued' }, { id: 's1' }), { kind: 'queued' });
+    assert.deepEqual(
+        BIN.trashOutcome({ ok: false, code: 'live' }, { id: 's1' }),
+        { kind: 'error', code: 'live' });
+    // An unparseable body must not be mistaken for success.
+    assert.deepEqual(BIN.trashOutcome(null, { id: 's1' }), { kind: 'error', code: 'fallback' });
+});
+
+test('the toast copy reuses the dialog keys, and the success-dialog title is gone', () => {
+    // The banner text and its action are the exact strings the dialog used to
+    // render — the copy survives the redesign, the modal does not.
+    assert.equal(BIN.tr('dialog.trash.done', { name: '会话甲' }), '已移入回收站「会话甲」。');
+    assert.equal(BIN.tr('dialog.trash.openBin'), '打开回收站');
+    // A removed key resolves to itself: this pins the cleanup, so a leftover
+    // render of the old success dialog would shout rather than hide.
+    assert.equal(BIN.tr('dialog.trash.doneTitle'), 'dialog.trash.doneTitle');
+});

@@ -38,7 +38,6 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.trash.policy": "回收站自动清理：保留 {days} 天",
 			"dialog.trash.policyOff": "回收站自动清理：已关闭",
 			"dialog.trash.done": "已移入回收站「{name}」。",
-			"dialog.trash.doneTitle": "已移入回收站",
 			"dialog.trash.openBin": "打开回收站",
 			"dialog.trash.queued": "该会话暂驻内存，已转为重启后移入回收站。",
 			"dialog.locateFail": "无法定位该会话，请重试或刷新页面后再试。",
@@ -132,7 +131,6 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.trash.policy": "Auto-clean: keep for {days} days",
 			"dialog.trash.policyOff": "Auto-clean: off",
 			"dialog.trash.done": "Moved “{name}” to the recycle bin.",
-			"dialog.trash.doneTitle": "Moved to recycle bin",
 			"dialog.trash.openBin": "Open recycle bin",
 			"dialog.trash.queued": "This session is resident in memory; it will move to the recycle bin on restart.",
 			"dialog.locateFail": "Could not locate this session — retry or reload the page.",
@@ -254,12 +252,17 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-dlg-btn:disabled{opacity:.55;cursor:default}",
 		".sd-dlg-btn-danger{background:var(--dsw-alias-state-error-primary,#e5484d);border-color:transparent;color:#fff;font-weight:600}",
 		".sd-dlg-btn-danger:hover{color:#fff;filter:brightness(1.08)}",
-		// The dialog reports the outcome too, and a completed deletion is a
-		// success: the same affirmative button turns green instead of staying
-		// danger-red once there is nothing left to be careful about.
-		".sd-dlg-success .sd-dlg-title .sd-icon{color:var(--dsw-alias-state-success-primary,#22c55e)}",
-		".sd-dlg-btn-success{background:var(--dsw-alias-state-success-primary,#22c55e);border-color:transparent;color:#fff;font-weight:600}",
-		".sd-dlg-btn-success:hover{color:#fff;filter:brightness(1.08)}",
+		// A completed move is reported by a top-center toast, not a modal (the
+		// confirmation is the only click worth demanding; the host's own archive
+		// toast is the convention this follows). The hold drives the fade's
+		// delay through the custom property, so unmount and fade cannot drift.
+		"@keyframes sd-toast-in{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}",
+		"@keyframes sd-toast-out{from{opacity:1}to{opacity:0}}",
+		".sd-toast{position:fixed;top:18px;left:50%;transform:translate(-50%,0);z-index:2300;display:flex;align-items:center;gap:8px;max-width:min(520px,calc(100vw - 32px));background:var(--dsw-alias-bg-overlay,#1c2030);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.35);padding:10px 14px;animation:sd-toast-in .22s ease-out both,sd-toast-out .8s ease-in var(--sd-toast-hold,6000ms) both;pointer-events:none}",
+		".sd-toast .sd-toast-icon{display:flex;flex:none;color:var(--dsw-alias-state-success-primary,#22c55e)}",
+		".sd-toast .sd-toast-text{font-size:12px;line-height:1.6;color:var(--dsw-alias-label-primary,#e8ecff);word-break:break-word}",
+		".sd-toast .sd-toast-action{pointer-events:auto;flex:none;background:none;border:none;padding:0;font:inherit;font-size:12px;color:var(--dsw-alias-label-primary,#e8ecff);font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:underline}",
+		".sd-toast .sd-toast-action:hover{filter:brightness(1.12)}",
 		// Moving a session to the bin is reversible, so the confirming button is
 		// neutral rather than danger-red — the destructive colour now belongs to
 		// the bin's own "delete permanently" action.
@@ -1411,11 +1414,90 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			onClose: function () {
 				if (dialogHost === null) return;
 				dialogHost.root.render(null);
-			},
-			onOpenBin: function () {
-				if (dialogHost !== null) dialogHost.root.render(null);
-				openTrashPanel();
 			}
+		}));
+	}
+
+	// ── standalone success toast (own React root) ────────────────────────────
+	//
+	// The completed move is the one outcome that needs no further decision from
+	// the user, so it reports as a non-blocking banner instead of a modal that
+	// costs a click. Shape follows the shell's own toast primitive (which the
+	// plugin cannot reach): portal to the body, top-center, role=alert, one
+	// actionable link, hold then fade, then unmount.
+
+	var toastHost = null; // { container, root }
+	var toastSeq = 0;
+	/** Full-opacity hold before the fade starts; matches the host's actionable toasts. */
+	var TOAST_HOLD_MS = 6000;
+	/** Fade duration; must agree with the stylesheet's sd-toast-out duration. */
+	var TOAST_FADE_MS = 800;
+
+	/** Exactly one toast host, with the dialog host's orphan-adoption rules. */
+	function ensureToastHost() {
+		var existing = document.querySelectorAll(".sd-toast-host");
+		for (var i = 1; i < existing.length; i++) existing[i].remove();
+		if (toastHost !== null && toastHost.container.isConnected) return toastHost;
+		var container = existing.length > 0 ? existing[0] : document.createElement("div");
+		if (existing.length === 0) {
+			container.className = "sd-toast-host";
+			document.body.appendChild(container);
+		}
+		var root = ReactDOMClient.createRoot(container);
+		toastHost = { container: container, root: root };
+		return toastHost;
+	}
+
+	function dismissToast() {
+		if (toastHost !== null) toastHost.root.render(null);
+	}
+
+	/**
+	 * The banner itself. Keyed by a per-show sequence: re-showing remounts with
+	 * a new key, which restarts both the entrance and the timers — the same
+	 * contract the shell's primitive documents. Unmount happens after
+	 * hold + fade; the stylesheet reads the hold as a custom property, so the
+	 * two can no longer disagree and cut the banner down mid-fade.
+	 */
+	function ToastBanner(props) {
+		React.useEffect(function () {
+			var timer = setTimeout(dismissToast, TOAST_HOLD_MS + TOAST_FADE_MS);
+			return function () { clearTimeout(timer); };
+		}, [props.seq]);
+		var children = [
+			React.createElement("span", {
+				key: "i", className: "sd-toast-icon", "aria-hidden": "true",
+				dangerouslySetInnerHTML: { __html: OK_ICON }
+			}),
+			React.createElement("span", { key: "t", className: "sd-toast-text" }, props.text)
+		];
+		if (props.action) {
+			children.push(React.createElement("button", {
+				key: "a", type: "button", className: "sd-toast-action",
+				onClick: function () { dismissToast(); props.action.onClick(); }
+			}, props.action.label));
+		}
+		return React.createElement("div", {
+			key: props.seq, className: "sd-toast", role: "alert",
+			style: { "--sd-toast-hold": TOAST_HOLD_MS + "ms" }
+		}, children);
+	}
+
+	/**
+	 * Report a completed move-to-bin. The banner is the whole report: which
+	 * session moved and one shortcut into the bin (the same next step the old
+	 * success dialog offered, minus the mandatory click).
+	 * @param name - display name of the session that moved.
+	 */
+	function showTrashToast(name) {
+		if (typeof document === "undefined" || document.body === null) return;
+		if (typeof ReactDOMClient === "undefined" || ReactDOMClient === null) return;
+		var host = ensureToastHost();
+		toastSeq += 1;
+		host.root.render(React.createElement(ToastBanner, {
+			seq: toastSeq,
+			text: tr("dialog.trash.done", { name: name }),
+			action: { label: tr("dialog.trash.openBin"), onClick: openTrashPanel }
 		}));
 	}
 
@@ -2132,15 +2214,43 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/**
+	 * Pure decision for what the confirm dialog does with a /trash response,
+	 * split out so the regression suite can pin the contract without a DOM:
+	 * a completed move leaves the dialog entirely (the toast takes over), a
+	 * queued move and every failure keep it open.
+	 * @param res - parsed response body, or null when parsing failed.
+	 * @param target - the captured session the dialog was opened for.
+	 * @returns `{kind:"queued"}`, `{kind:"trashed", name}` or `{kind:"error", code}`.
+	 */
+	function trashOutcome(res, target) {
+		if (res !== null && res !== undefined && res.ok === true) {
+			if (res.mode === "queued") return { kind: "queued" };
+			// Remember only the outcome: which session moved and that it worked.
+			// The host's name is a fallback for the DOM-capture path, which can
+			// only ever produce an id.
+			var name = target.title ||
+				(typeof res.name === "string" && res.name !== "" ? res.name : null) ||
+				target.id;
+			return { kind: "trashed", name: name };
+		}
+		var code = res && typeof res.code === "string" ? res.code : "fallback";
+		return { kind: "error", code: code };
+	}
+
+	/**
 	 * Two-step confirmation shown when the menu's move-to-bin item is chosen.
 	 *
 	 * The action is reversible, so the confirming button is neutral (not danger
-	 * red) and the success report offers the panel itself as the next step.
+	 * red). A completed move closes the dialog and reports through the toast —
+	 * success needs no further decision, and demanding a click to acknowledge
+	 * it would be a second confirmation. Every other terminal state (nothing
+	 * located, queued for a restart, an error) stays in the dialog: those still
+	 * describe an operation the user should treat with the same care as the
+	 * confirmation, and a banner that fades away in seconds cannot carry them.
 	 */
 	function TrashConfirmDialog(props) {
 		var target = (props && props.target) || {};
 		var onClose = props && typeof props.onClose === "function" ? props.onClose : function () {};
-		var onOpenBin = props && typeof props.onOpenBin === "function" ? props.onOpenBin : null;
 		var policy = props && typeof props.policy === "string" ? props.policy : null;
 		var busyState = React.useState(false);
 		var busy = busyState[0];
@@ -2151,9 +2261,6 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		var queuedState = React.useState(false);
 		var queued = queuedState[0];
 		var setQueued = queuedState[1];
-		var doneState = React.useState(null);
-		var done = doneState[0];
-		var setDone = doneState[1];
 
 		React.useEffect(function () {
 			function onKey(e) { if (e.key === "Escape" && !busy) onClose(); }
@@ -2176,23 +2283,20 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				return res.json().catch(function () { return null; });
 			}).then(function (res) {
 				setBusy(false);
-				if (res !== null && res !== undefined && res.ok === true) {
-					if (res.mode === "queued") { setQueued(true); return; }
-					// Remember only the outcome: which session moved and that it
-					// worked. The host's name is a fallback for the DOM-capture
-					// path, which can only ever produce an id.
-					var trashedName = target.title ||
-						(typeof res.name === "string" && res.name !== "" ? res.name : null) ||
-						target.id;
-					setDone({ name: trashedName });
-					// The row must leave the list, and the bin's own count/tooltip
-					// must follow: both are re-baselined from the host.
+				var outcome = trashOutcome(res, target);
+				if (outcome.kind === "queued") { setQueued(true); return; }
+				if (outcome.kind === "trashed") {
+					// Close first: the banner replaces the dialog, it does not
+					// stack on top of it. The row must leave the list, and the
+					// bin's own count/tooltip must follow — both are
+					// re-baselined from the host.
+					onClose();
+					showTrashToast(outcome.name);
 					refreshSessions();
 					void refreshBin();
 					return;
 				}
-				var code = res && typeof res.code === "string" ? res.code : "fallback";
-				setErr(tr("error." + code));
+				setErr(tr("error." + outcome.code));
 			}, function (e) {
 				setBusy(false);
 				setErr(String(e && e.message ? e.message : e));
@@ -2200,19 +2304,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 
 		var name = target.title || target.id;
-		// A completed move is the one terminal state that reports success; every
-		// other terminal state (nothing located, queued for a restart, an error
-		// line) still describes an operation the user should treat with the same
-		// care as the confirmation, so it keeps the warning look.
-		var succeeded = done !== null;
 		var body = [];
 		if (locateFail) {
 			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.locateFail")));
-		} else if (done !== null) {
-			// Terminal state: report only which session moved and that it worked
-			// — no restated warning, no path dump.
-			body.push(React.createElement("div", { key: "d", className: "sd-dlg-text" },
-				tr("dialog.trash.done", { name: done.name })));
 		} else {
 			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.trash.target", { name: name })));
 			if (target.cwd) {
@@ -2235,17 +2329,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 
 		var actions = [];
-		if (queued || locateFail || done !== null) {
-			// From the success report the bin is one click away, so the count and
-			// the tooltip can be checked without hunting for the sidebar icon.
-			if (succeeded && onOpenBin !== null) {
-				actions.push(React.createElement("button", {
-					key: "bin", type: "button", className: "sd-dlg-btn", onClick: onOpenBin
-				}, tr("dialog.trash.openBin")));
-			}
+		if (queued || locateFail) {
 			actions.push(React.createElement("button", {
-				key: "ok", type: "button",
-				className: succeeded ? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-warn",
+				key: "ok", type: "button", className: "sd-dlg-btn sd-dlg-btn-warn",
 				onClick: onClose
 			}, tr("bin.close")));
 		} else {
@@ -2258,23 +2344,20 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			}, busy ? tr("row.working") : tr("row.trash")));
 		}
 
-		// The dialog heading follows the outcome: the tick + success colour on a
-		// completed move, the bin + neutral colour everywhere else.
-		var titleKey = succeeded ? "dialog.trash.doneTitle" : "dialog.trash.title";
 		return React.createElement("div", null, [
 			React.createElement("div", { key: "b", className: "sd-dlg-backdrop", onClick: function () { if (!busy) onClose(); } }),
 			React.createElement("div", {
 				key: "d",
-				className: succeeded ? "sd-dlg sd-dlg-success" : "sd-dlg",
+				className: "sd-dlg",
 				role: "alertdialog",
-				"aria-label": tr(titleKey)
+				"aria-label": tr("dialog.trash.title")
 			}, [
 				React.createElement("div", { key: "t", className: "sd-dlg-title" }, [
 					React.createElement("span", {
 						key: "i", className: "sd-icon",
-						dangerouslySetInnerHTML: { __html: succeeded ? OK_ICON : ICON }
+						dangerouslySetInnerHTML: { __html: ICON }
 					}),
-					React.createElement("span", { key: "l" }, tr(titleKey))
+					React.createElement("span", { key: "l" }, tr("dialog.trash.title"))
 				]),
 				body,
 				React.createElement("div", { key: "a", className: "sd-dlg-actions" }, actions)
@@ -2431,6 +2514,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		RetentionControl: RetentionControl,
 		IntervalControl: IntervalControl,
 		TrashConfirmDialog: TrashConfirmDialog,
+		// The /trash response contract: success leaves the dialog for the toast.
+		trashOutcome: trashOutcome,
 		TrashPanelHost: TrashPanelHost,
 		TrashPanelBody: TrashPanelBody
 	};
