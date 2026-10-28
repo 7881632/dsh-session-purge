@@ -289,7 +289,22 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-head-count{font-size:11px;font-weight:400;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-bin-head-close{margin-left:auto;padding:2px 6px;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:14px;line-height:1;cursor:pointer}",
 		".sd-bin-head-close:hover{background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-bin-list{margin-top:10px;min-height:56px;overflow:auto;flex:1 1 auto}",
+		// The panel body has to own a layout context, or the list below has no
+		// definite height to overflow against: as a plain block child of the card
+		// it would size itself to its own content, `flex:1 1 auto` on the list
+		// would be inert, and rows past the fold would simply be clipped instead
+		// of scrollable. Being the card's shrinkable flex item (`min-height:0` is
+		// what actually allows it to be shorter than its content) is what passes
+		// a real height budget down to the list.
+		".sd-bin-body{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden}",
+		// `min-height` keeps a short list from collapsing to nothing; `max-height`
+		// is the seatbelt for hosts whose Modal caps its card without handing the
+		// constraint down to our children — the shell's own card stops at 380px,
+		// but that bound does not necessarily reach this node. 280px is the room
+		// reserved off a full viewport for everything that must stay visible with
+		// the list: the card padding, the head row, the footer and any notice or
+		// confirm strip.
+		".sd-bin-list{margin-top:10px;min-height:56px;max-height:calc(100vh - 280px);overflow:auto;overscroll-behavior:contain;flex:1 1 auto}",
 		".sd-bin-row{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18))}",
 		".sd-bin-row:last-child{border-bottom:none}",
 		".sd-bin-row-main{flex:1 1 auto;min-width:0}",
@@ -1837,7 +1852,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 		if (state.confirm !== null) children.push(renderBinConfirm(state.confirm));
 		children.push(renderBinFooter(state, entries.length));
-		return React.createElement("div", null, children);
+		// Wrapper matters: every rule above assumes the body is a flex column
+		// (`.sd-bin-body`), which is what makes the list scroll and keeps the
+		// confirm strip and footer pinned below it.
+		return React.createElement("div", { className: "sd-bin-body" }, children);
 	}
 
 	/**
