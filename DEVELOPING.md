@@ -2,9 +2,13 @@
 
 面向维护者。终端用户请读 [README.md](./README.md)。
 
-当前发布：**0.5.3**（2026-10-21，npm 与 GitHub Release；设置页增强已随该版发布）。
-`main` 上另有尚未发布的一轮失败路径修复（重启队列、清空部分失败、请求体超限、
-跳过清理仍记账、跨卷重复会话），下一次发布时带上（建议 `--bump patch`）。
+当前发布：**0.5.4**（2026-10-25，npm 与 GitHub Release）。随该版发出的是上一轮失败路径修复
+（`fix(queue)` 重启队列、`fix(bin)` 清空部分失败、`fix(http)` 请求体超限、`fix(sweep)` 跳过清理
+仍记账、`fix(trash)` 跨卷重复会话）与「移入回收站」成功提示改 toast。
+
+`main` 上另有尚未发布的一处修复：`fix(client)` 让回收站面板的**列表**成为面板里唯一的滚动区
+（issue #1：body 是匿名 `div`，列表拿不到确定高度，超过一屏的条目被裁掉且滚不到，底栏被顶出
+视口）。下一次发布时带上（建议 `--bump patch`）。
 
 ## 代码结构
 
@@ -40,7 +44,8 @@ node tools/repro-delete.mjs           # 端到端：永久删除（真实 JSONL 
 node tools/repro-trash.mjs            # 端到端：移入 → 复原（逐字节）→ 真实删除 → 过期清理
 node tools/smoke-install.mjs ./x.tgz  # 隔离 home 里装包冒烟
 node tools/dialog-render-probe.mjs    # 真实 React + 真实主题渲染确认弹窗与成功 toast，核对配色
-node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态
+node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态，
+                                      # 并几何断言「长列表在卡片内滚动、底栏不外溢、滚到底够得着最后一行」
 node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置页并逐个驱动控件（含版本页脚/更新链接）
 ```
 
@@ -127,8 +132,8 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 **版本号归发布脚本管**（`--bump` 会跑 `npm version`、提交、打 tag）。特性提交里
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
-0.5.3 之后 `main` 上还有未发布改动（失败路径修复，全在 `fix(...)` 提交里）；发布前先确认
-工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
+0.5.4 之后 `main` 上还有一处未发布改动（回收站面板列表滚动，三笔提交：`fix(client)` / `docs(spec)` /
+`test(tools)`）；发布前先确认工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
 
 ## 跨版本兼容
 

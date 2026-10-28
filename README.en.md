@@ -12,12 +12,14 @@ stays on disk forever. This plugin is about **deletion**, and it splits deletion
 into two jobs: the reversible part (move to the bin) and reclaiming disk space
 (true delete, or automatic clean-up on a retention schedule).
 
-> **Release status**: the current npm / GitHub Release is `0.5.3` (2026-10-21),
-> which shipped the settings-page polish (bin icon, version footer, npm update
-> hint). `main` additionally carries an unreleased batch of failure-path fixes —
-> the restart queue, partial "empty the bin", oversized request bodies, sweep
-> bookkeeping and the cross-volume duplicate — which will reach the npm package
-> with the next release.
+> **Release status**: the current npm / GitHub Release is `0.5.4` (2026-10-25),
+> which shipped a batch of failure-path fixes — the restart queue, partial "empty
+> the bin", oversized request bodies, sweep bookkeeping and the cross-volume
+> duplicate — plus the move-to-bin success hint becoming a toast. `main`
+> additionally carries one unreleased fix: once there were enough entries to
+> overflow the panel, the list did not scroll and its last rows could be neither
+> seen nor clicked ([#1](https://github.com/verdana/dsh-session-purge/issues/1)).
+> It reaches the npm package with the next release.
 
 ## What it does
 
