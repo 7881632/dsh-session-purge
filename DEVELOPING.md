@@ -129,7 +129,8 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
 **发布前唯一必须人工写的是 CHANGELOG**：把「未发布」一节改成 `## [x.y.z] - YYYY-MM-DD`，
-版本号要与 `--bump` 得出的结果一致，并补上这版的比较链接。
+版本号要与 `--bump` 得出的结果一致，并补上这版的比较链接。写歪了不用靠自觉——`--bump` 之后
+有一道 **CHANGELOG 闸门**，条目与 `package.json` 的版本对不上就停，并列出已经有哪些版本。
 
 为什么顺序是这样：`--bump` 只改 `package.json`，结尾的 release commit 也只
 `git add package.json LICENSE`；而工作树闸门在流程最前面就要求干净。所以 CHANGELOG **必须
