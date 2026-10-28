@@ -724,3 +724,46 @@ test('the toast copy reuses the dialog keys, and the success-dialog title is gon
     // render of the old success dialog would shout rather than hide.
     assert.equal(BIN.tr('dialog.trash.doneTitle'), 'dialog.trash.doneTitle');
 });
+
+// ── panel scrolling (issue #1) ─────────────────────────────────────────────
+//
+// Rows past the fold must be reachable by scrolling, and the confirm strip and
+// footer below the list must stay put. That rests on three things a static read
+// can pin: the body being a flex column allowed to shrink, the list having a
+// bounded height, and the render actually using the body class. What it cannot
+// prove here is the pixel outcome — tools/trash-panel-probe.mjs renders the
+// panel against the real theme for that.
+
+/** Read one declaration set out of the CSS block by selector. */
+function cssRule(selector) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = clientSrc.match(new RegExp('"' + escaped + '\\{([^}]*)\\}"'));
+    assert.ok(match !== null, `missing a CSS rule for ${selector}`);
+    return Object.fromEntries(match[1].split(';').filter(Boolean).map((decl) => {
+        const colon = decl.indexOf(':');
+        return [decl.slice(0, colon), decl.slice(colon + 1)];
+    }));
+}
+
+test('the panel body is a shrinkable flex column, not an anonymous block', () => {
+    const body = cssRule('.sd-bin-body');
+    assert.equal(body.display, 'flex');
+    assert.equal(body['flex-direction'], 'column');
+    assert.equal(body['flex'], '1 1 auto');
+    // The load-bearing one: without it the body refuses to shrink below its
+    // content, so nothing ever gets short enough to scroll (issue #1).
+    assert.equal(body['min-height'], '0');
+    // The class is inert unless the body render actually uses it.
+    assert.match(clientSrc, /createElement\("div", \{ className: "sd-bin-body" \}, children\)/);
+});
+
+test('the list owns the scrolling, bounded even when the Modal passes no height down', () => {
+    const list = cssRule('.sd-bin-list');
+    assert.equal(list.overflow, 'auto');
+    assert.equal(list['flex'], '1 1 auto');
+    assert.equal(list['min-height'], '56px', 'a short list must not collapse');
+    // The shell caps its own card but does not necessarily hand that bound to
+    // our children, so the list carries its own viewport-relative ceiling.
+    assert.equal(list['max-height'], 'calc(100vh - 280px)');
+    assert.equal(list['overscroll-behavior'], 'contain');
+});

@@ -228,6 +228,29 @@ const readPanel = () => page.evaluate(() => {
         more: pick('.sd-bin-more'),
         emptyAll: button('.sd-bin-link'),
         danger: button('.sd-dlg-btn-danger'),
+        // Issue #1: rows past the fold were clipped and unreachable because the
+        // body gave the list no height to overflow against. Geometry is the only
+        // thing that can tell the difference between "the list scrolls" and
+        // "the rows are drawn outside the card where nobody can reach them".
+        scroll: (() => {
+            const body = card.querySelector('.sd-bin-body');
+            const list = card.querySelector('.sd-bin-list');
+            if (body === null || list === null) return null;
+            const footer = card.querySelector('.sd-bin-footer');
+            const cardBox = card.getBoundingClientRect();
+            const listBox = list.getBoundingClientRect();
+            const footBox = footer === null ? null : footer.getBoundingClientRect();
+            return {
+                clientHeight: list.clientHeight,
+                scrollHeight: list.scrollHeight,
+                scrollable: list.scrollHeight > list.clientHeight + 1,
+                listBottom: Math.round(listBox.bottom),
+                cardBottom: Math.round(cardBox.bottom),
+                // Nothing below the list may fall outside the card.
+                footerInside: footBox === null ? null : Math.round(footBox.bottom) <= Math.round(cardBox.bottom),
+                cardInsideViewport: Math.round(cardBox.bottom) <= window.innerHeight,
+            };
+        })(),
     };
 });
 
@@ -260,6 +283,26 @@ const manyBefore = await readPanel();
 await page.evaluate(() => document.querySelector('.sd-bin-more')?.click());
 await page.waitForTimeout(260);
 const manyAfter = await readPanel();
+
+// Drive the list to the bottom: the point of issue #1 is that those rows were
+// unreachable, and only a real scroll proves they are not anymore.
+const manyScrolled = await page.evaluate(() => {
+    const list = document.querySelector('.sd-bin-list');
+    if (list === null) return null;
+    if (list.scrollHeight <= list.clientHeight + 1) return { scrollable: false };
+    list.scrollTop = list.scrollHeight;
+    const rows = [...document.querySelectorAll('.sd-bin-row')];
+    const last = rows[rows.length - 1];
+    const listBox = list.getBoundingClientRect();
+    const lastBox = last.getBoundingClientRect();
+    return {
+        scrollable: true,
+        scrollTop: Math.round(list.scrollTop),
+        lastRowTitle: last.querySelector('.sd-bin-row-title')?.textContent ?? null,
+        // The last row must end up inside the list's own box, not below it.
+        lastRowReachable: lastBox.bottom <= listBox.bottom + 2 && lastBox.top >= listBox.top - 2,
+    };
+});
 
 const light = { tokens: await readTokens(), states };
 await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', ''));
@@ -326,6 +369,16 @@ check('a long bin shows one page plus "load more"',
 check('"load more" reveals the rest and then disappears',
     manyAfter !== null && manyAfter.rows.length === 60 && manyAfter.more === null,
     JSON.stringify({ rows: manyAfter?.rows?.length, more: manyAfter?.more }));
+// ── issue #1: the list scrolls, the card and footer stay put ───────────────
+check('a long list scrolls inside the card instead of overflowing it',
+    manyBefore.scroll !== null && manyBefore.scroll.scrollable === true,
+    JSON.stringify(manyBefore?.scroll));
+check('the card stays in the viewport and the footer stays inside the card',
+    manyBefore.scroll?.cardInsideViewport === true && manyBefore.scroll?.footerInside === true,
+    JSON.stringify(manyBefore?.scroll));
+check('scrolling really reaches the rows past the fold',
+    manyScrolled !== null && manyScrolled.scrollable === true && manyScrolled.lastRowReachable === true,
+    JSON.stringify(manyScrolled));
 check('the panel renders under the dark palette too',
     dark.states.list !== null && dark.states.list.rows.length === 3
     && dark.states.list.card.background !== light.states.list.card.background,
