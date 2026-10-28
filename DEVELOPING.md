@@ -35,7 +35,7 @@ dsh plugin --profile web add link:<本仓库绝对路径>
 ## 测试
 
 ```sh
-npm test                              # 回归测试（helpers + trash + client-bin 三个套件）
+npm test                              # 回归测试（helpers + trash + client-bin + pack-report 四个套件）
 node tools/repro-delete.mjs           # 端到端：永久删除（真实 JSONL 后端 + 真实日志副本）
 node tools/repro-trash.mjs            # 端到端：移入 → 复原（逐字节）→ 真实删除 → 过期清理
 node tools/smoke-install.mjs ./x.tgz  # 隔离 home 里装包冒烟

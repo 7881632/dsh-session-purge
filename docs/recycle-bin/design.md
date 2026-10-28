@@ -688,6 +688,7 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 | `tools/settings-render-probe.mjs` | 新增：设置页渲染探针（自绘路径逐控件驱动，含页脚版本/更新链接） |
 | `tools/bin-live-probe.mjs` | 新增：隔离实例端到端探针（现 45 个断言点，含设置腿、导航图标与页脚版本） |
 | `tools/dialog-render-probe.mjs` / `dialog-probe.mjs` | 组件改名与新按钮变体同步 |
+| `scripts/pack-report.mjs` / `tools/pack-report.test.mjs` | 新增：`npm pack --json` 两种形状（npm 10 及更早的对象、npm 11 起的数组）的解析与其 6 例回归——闸门 4 曾因只认对象形状，在发版当天抛 `SyntaxError` |
 | `package.json` | **不新增依赖**（primitives 是平台 seed 词）；`dsh.client.inject` 保持不变；版本由发布脚本管理 |
 | `README.md` / `README.en.md` | 已按回收站语义更新；版本由 npm badge（最新版）与 `CHANGELOG.md`（逐版变更）承担，文档不再写死当前版本 |
 | `DEVELOPING.md` | 回收站模型、五条不变量、测试命令 |

@@ -48,6 +48,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parsePackReport } from './pack-report.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_REGISTRY = 'https://registry.npmjs.org/';
 const TARBALL_DIR = join(ROOT, '.release-lab');
@@ -390,12 +392,22 @@ async function checkTarball() {
         args.push('--pack-destination', TARBALL_DIR);
     }
     const packed = await run('npm', args);
-    if (packed.code !== 0) fail(`npm pack 失败:\n${packed.stderr.trim().split('\n').slice(-8).join('\n')}`);
+    if (packed.code !== 0) {
+        // 有些 npm 版本把 pack 的错误写在 stdout 里，只读 stderr 会得到一条空消息。
+        const detail = (packed.stderr.trim() || packed.stdout.trim()).split('\n').slice(-8).join('\n');
+        fail(`npm pack 失败:\n${detail || `（npm pack 没有任何输出，退出码 ${packed.code}）`}`);
+    }
 
-    const at = packed.stdout.indexOf('{');
-    if (at === -1) fail(`npm pack --json 没吐出 JSON:\n${packed.stdout.slice(0, 400)}`);
-    const report = JSON.parse(packed.stdout.slice(at))[PKG_NAME];
-    if (report === undefined) fail('npm pack --json 的报告里没有这个包');
+    // npm 10 及更早吐 { "<name>": {...} }，npm 11 起吐 [{ name, ... }]。以前只
+    // 从第一个 `{` 往后切，碰到数组形状会留下尾部的 `]` 直接 SyntaxError —— 闸门
+    // 因此在 4/6 这一步崩掉，而不是给出「tarball 缺文件」这种可读的结论。
+    // 形状处理与它的测试都在 scripts/pack-report.mjs。
+    let report;
+    try {
+        report = parsePackReport(packed.stdout, PKG_NAME);
+    } catch (error) {
+        fail(error.message);
+    }
 
     const paths = report.files.map((file) => file.path);
     for (const required of REQUIRED_FILES) {
