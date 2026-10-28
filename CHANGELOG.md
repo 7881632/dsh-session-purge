@@ -9,6 +9,11 @@
 
 ## [未发布]
 
+### 文档
+
+- 兼容性说明更新到 DSH `0.2.1-rc.4`：`rc.2 → rc.4` 之间插件依赖的契约面未变，实机复验通过，
+  无需改动代码（见 [docs/compat-0.2.1-rc.4.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.4.md)）。
+
 ### 修复
 
 - 回收站面板的会话列表不再在条目超过一屏时失去滚动：列表成为面板里唯一的滚动区，末尾几条
