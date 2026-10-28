@@ -14,7 +14,7 @@
 | **M1 宿主回收站内核** | ✅ 已完成 | `lib/index.js`：`locateSessionDirectory()` 共享定位/安全闸门、`trashSession`/`restoreSession`/`purgeSession`/`emptyTrash`/`sweepTrash`/`recoverTrash`/`trashSummary`/设置读写/串行化 + 9 条路由 + 启动维护与 15 分钟清扫心跳；`tools/trash.test.mjs`（M1 时 27 例，现 32 例）；`tools/repro-trash.mjs` 对**真实 v4 JSONL 后端 + 真实 373 KB 会话副本**跑通 移入 → 列表不含 → 复原（逐字节一致 + 身份校验通过）→ 真实删除 → 过期清理 |
 | **M2 客户端主流程** | ✅ 已完成 | `client/client.js`：侧边栏第 4 个图标（自建 React 根 + primitives `Tooltip`/`IconTrashOutlineRegular` + 运行期复用锚点 className + 覆写 60px 上限）、回收站面板（primitives `Modal`，含空态/列表/分页/逐行复原与真实删除/清空/失败重试）、菜单项「移入回收站」+ 中性确认弹窗 + 成功 toast（带「打开回收站」动作）、复原后 `sessions.refresh()`；`tools/client-bin.test.mjs`（M2 时 17 例，现累计 41 例）；`tools/trash-panel-probe.mjs`（真实 React + 主题，**7 种状态**、明暗两套）；`tools/bin-live-probe.mjs`（M2 时 20 项，现 45 个断言点，含"移入后行消失 / 复原后行回来，均不刷新页面"） |
 | **M3 设置页与自动清理 UI** | ✅ 已完成 | `client/client.js`：`settings.section` 注册（可选注入 `slots`，`id: session-purge`，`order 50`，label 用 thunk 跟随语言）+ 设置页（primitives `Switch`/`SegmentedControl`/`Input`，缺失时自绘同语义控件）、每字段独立写入并采纳宿主回值、调度控件随 `autoClean` 锁定、统计行、立即清理、打开回收站；面板策略行变成进入设置页的入口（按 shell 自己的启动按钮的 aria-label）。`tools/settings-render-probe.mjs`（自绘路径逐控件断言，含页脚版本/更新链接）；`tools/bin-live-probe.mjs` 现 45 个断言点，含真 shell + primitives 的设置腿 |
-| **M4 打磨与发布** | ✅ 已发布 0.5.4 | 2026-10-18 发布 `0.5.2`；2026-10-21 发布 `0.5.3`（设置页导航图标、页脚版本号、npm 更新提示）；2026-10-25 发布 `0.5.4`（失败路径修复 `fix(queue)`/`fix(bin)`/`fix(http)`/`fix(sweep)`/`fix(trash)`，成功提示改 toast）。README/README.en/DEVELOPING 已按回收站语义更新，`spec.md` §13 记录已知边界，CI 跑 `tools/*.test.mjs`。0.5.4 之后 `main` 有一处未发布的修复：面板列表滚动（issue #1） |
+| **M4 打磨与发布** | ✅ 已完成 | 2026-10-18 发布 `0.5.2`；2026-10-21 发布 `0.5.3`（设置页导航图标、页脚版本号、npm 更新提示）；2026-10-25 发布 `0.5.4`（失败路径修复 `fix(queue)`/`fix(bin)`/`fix(http)`/`fix(sweep)`/`fix(trash)`，成功提示改 toast）。README/README.en/DEVELOPING 已按回收站语义更新，`spec.md` §13 记录已知边界，CI 跑 `tools/*.test.mjs`。逐版变更见 `CHANGELOG.md` |
 
 M1 期间被真实跑出来的两个缺陷（都已修 + 已加回归）：
 
@@ -689,7 +689,7 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 | `tools/bin-live-probe.mjs` | 新增：隔离实例端到端探针（现 45 个断言点，含设置腿、导航图标与页脚版本） |
 | `tools/dialog-render-probe.mjs` / `dialog-probe.mjs` | 组件改名与新按钮变体同步 |
 | `package.json` | **不新增依赖**（primitives 是平台 seed 词）；`dsh.client.inject` 保持不变；版本由发布脚本管理 |
-| `README.md` / `README.en.md` | 已按回收站语义更新；版本状态指向 0.5.4，并标注 `main` 上未发布的面板列表滚动修复 |
+| `README.md` / `README.en.md` | 已按回收站语义更新；版本由 npm badge（最新版）与 `CHANGELOG.md`（逐版变更）承担，文档不再写死当前版本 |
 | `DEVELOPING.md` | 回收站模型、五条不变量、测试命令 |
 | `docs/recycle-bin/spec.md`、`design.md` | 本次新增（功能定义与实现记录） |
 
@@ -700,4 +700,4 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 3. **M3** 设置与清理：`settings.json` → 路由 → 设置页 → 启动/定时清理。
 4. **M4** 打磨 + 文案表核对 + 文档 + `0.5.0` 发布（六道闸门）；之后 `0.5.1` 做 DSH 0.2.1 兼容修复，
    `0.5.2` 修发布/市场文档，`0.5.3` 发布设置页图标、版本页脚与更新提示，`0.5.4` 发布失败路径修复与
-   成功提示改 toast；`main` 上的面板列表滚动修复（issue #1）等待下一次发布。
+   成功提示改 toast。此后的版本记录见 `CHANGELOG.md`。

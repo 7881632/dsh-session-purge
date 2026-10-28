@@ -2,13 +2,9 @@
 
 面向维护者。终端用户请读 [README.md](./README.md)。
 
-当前发布：**0.5.4**（2026-10-25，npm 与 GitHub Release）。随该版发出的是上一轮失败路径修复
-（`fix(queue)` 重启队列、`fix(bin)` 清空部分失败、`fix(http)` 请求体超限、`fix(sweep)` 跳过清理
-仍记账、`fix(trash)` 跨卷重复会话）与「移入回收站」成功提示改 toast。
-
-`main` 上另有尚未发布的一处修复：`fix(client)` 让回收站面板的**列表**成为面板里唯一的滚动区
-（issue #1：body 是匿名 `div`，列表拿不到确定高度，超过一屏的条目被裁掉且滚不到，底栏被顶出
-视口）。下一次发布时带上（建议 `--bump patch`）。
+**版本记录不写在本文件里**。已发布版本的用户可见变化全部记在 [CHANGELOG.md](./CHANGELOG.md)；
+`main` 上尚未发布的改动记在它的「未发布」一节。文档里不再出现「当前发布是 X」这类陈述——那是最
+容易腐的一种事实，0.5.3 与 0.5.4 两次发布之后都腐了（口径纠正见「发布」一节的纪律）。
 
 ## 代码结构
 
@@ -132,8 +128,15 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 **版本号归发布脚本管**（`--bump` 会跑 `npm version`、提交、打 tag）。特性提交里
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
-0.5.4 之后 `main` 上还有一处未发布改动（回收站面板列表滚动，三笔提交：`fix(client)` / `docs(spec)` /
-`test(tools)`）；发布前先确认工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
+**发布前唯一必须人工写的是 CHANGELOG**：把「未发布」一节改成 `## [x.y.z] - YYYY-MM-DD`，
+版本号要与 `--bump` 得出的结果一致，并补上这版的比较链接。
+
+为什么顺序是这样：`--bump` 只改 `package.json`，结尾的 release commit 也只
+`git add package.json LICENSE`；而工作树闸门在流程最前面就要求干净。所以 CHANGELOG **必须
+在发布前单独提交好**——指望发布提交把文档改动带上，它不会带，改了也只会变成孤儿脏文件。
+（这也是为什么文档里不再写「当前发布是 X」：写在那儿就得靠人补，而没人提醒。）
+
+发布前先确认工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
 
 ## 跨版本兼容
 

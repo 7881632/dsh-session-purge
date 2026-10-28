@@ -1,5 +1,7 @@
 # dsh-session-purge
 
+[![npm 最新版本](https://img.shields.io/npm/v/dsh-session-purge.svg)](https://www.npmjs.com/package/dsh-session-purge)
+
 [中文](./README.md) | [English](https://github.com/verdana/dsh-session-purge/blob/main/README.en.md)
 
 给 DeepSeek Harness (DSH) 的会话删除加一个**回收站**：删除不再不可恢复，而是把会话**原样移入
@@ -8,10 +10,7 @@
 上游的「归档」只是把会话从默认列表里藏起来，日志永远留在磁盘上；这个插件管的是**删除**，
 而且把「删掉」和「腾出磁盘」拆成了两件事：前者随时可逆，后者交给按时间的自动清理。
 
-> **版本状态**：当前发布为 npm / GitHub Release `0.5.4`（2026-10-25，含一轮失败路径修复——重启队列、
-> 清空部分失败、请求体超限、跳过清理的记账、跨卷重复会话，以及「移入回收站」的成功提示改为 toast）。
-> `main` 上另有尚未发布的一处修复：回收站条目多到超过一屏时列表不滚动、末尾几条看不到也点不到
-> （[#1](https://github.com/verdana/dsh-session-purge/issues/1)），会在下一次发布中进入 npm 包。
+> 版本与逐版变更见 [CHANGELOG.md](./CHANGELOG.md)；npm 上的最新版本见上方 badge。
 
 ## 功能一览
 

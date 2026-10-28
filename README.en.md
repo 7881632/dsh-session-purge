@@ -1,5 +1,7 @@
 # dsh-session-purge
 
+[![npm version](https://img.shields.io/npm/v/dsh-session-purge.svg)](https://www.npmjs.com/package/dsh-session-purge)
+
 [中文](https://github.com/verdana/dsh-session-purge/blob/main/README.md) | [English](./README.en.md)
 
 A **recycle bin** for DeepSeek Harness (DSH) session deletion: deleting no longer
@@ -12,14 +14,8 @@ stays on disk forever. This plugin is about **deletion**, and it splits deletion
 into two jobs: the reversible part (move to the bin) and reclaiming disk space
 (true delete, or automatic clean-up on a retention schedule).
 
-> **Release status**: the current npm / GitHub Release is `0.5.4` (2026-10-25),
-> which shipped a batch of failure-path fixes — the restart queue, partial "empty
-> the bin", oversized request bodies, sweep bookkeeping and the cross-volume
-> duplicate — plus the move-to-bin success hint becoming a toast. `main`
-> additionally carries one unreleased fix: once there were enough entries to
-> overflow the panel, the list did not scroll and its last rows could be neither
-> seen nor clicked ([#1](https://github.com/verdana/dsh-session-purge/issues/1)).
-> It reaches the npm package with the next release.
+> Versions and per-release changes live in [CHANGELOG.md](./CHANGELOG.md); the latest
+> published version is the badge above.
 
 ## What it does
 

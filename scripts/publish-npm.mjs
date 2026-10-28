@@ -58,6 +58,9 @@ const TEMP_NPMRC = join(ROOT, '.npmrc');
 const REQUIRED_FILES = [
     'package.json',
     'README.md',
+    // The version history lives here now that no doc states the current version,
+    // and README links to it relatively — so it has to be inside the tarball.
+    'CHANGELOG.md',
     'LICENSE',
     'cordis.patch.yml',
     'lib/index.js',
