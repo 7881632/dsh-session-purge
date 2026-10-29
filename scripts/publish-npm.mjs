@@ -15,10 +15,14 @@
  *   1. 工作树闸门   —— 有未提交改动 / 不在主分支就停（发出去的东西必须对得上某个提交）
  *   2. 元数据核查   —— name/version/license/files/dsh 段齐不齐，LICENSE 版权人是否还是占位符，
  *                     repository 字段在不在（npm 页面靠它把 README 的相对图片路径指到仓库）
- *   3. test         —— `npm test`，失败即停
- *   4. tarball 核查 —— npm pack --json 拿真实文件清单，核对必须有的与绝不能有的
- *   5. registry 核查 —— 这个版本是否已存在、包名归谁、当前登录身份是否为维护者
- *   6. 发布         —— 默认不真发（只核查），要真发必须显式 --publish
+ *   3. 升版         —— `--bump patch|minor|major`，只改 package.json（commit/tag 留到发布成功后）
+ *   3.5 CHANGELOG 闸门 —— 升版后的版本号必须在 CHANGELOG.md 里有条目：文档里已不再声明
+ *                     「当前发布是 X」，变更记录因此成了发布材料的一部分，得跟着版本走进包
+ *   4. test         —— `npm test`，失败即停
+ *   5. tarball 核查 —— npm pack --json 拿真实文件清单，核对必须有的与绝不能有的
+ *   6. registry 核查 —— 这个版本是否已存在、包名归谁、当前登录身份是否为维护者
+ *   7. 发布         —— 默认不真发（只核查），要真发必须显式 --publish
+ *   8. 收尾         —— 发布后核对 registry、打 `chore(release): vX` 提交与 tag、可选冒烟安装
  *
  * 本机三个坑（都已在脚本里处理）：
  *   - `~/.npmrc` 的 registry 指向 mirrors.cloud.tencent.com，镜像是只读的：
@@ -48,6 +52,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parsePackReport } from './pack-report.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_REGISTRY = 'https://registry.npmjs.org/';
 const TARBALL_DIR = join(ROOT, '.release-lab');
@@ -58,6 +64,9 @@ const TEMP_NPMRC = join(ROOT, '.npmrc');
 const REQUIRED_FILES = [
     'package.json',
     'README.md',
+    // The version history lives here now that no doc states the current version,
+    // and README links to it relatively — so it has to be inside the tarball.
+    'CHANGELOG.md',
     'LICENSE',
     'cordis.patch.yml',
     'lib/index.js',
@@ -358,6 +367,28 @@ async function bumpVersion() {
     info('注意：这一步之后工作树就是脏的，结尾的 git commit 会处理它');
 }
 
+// ── 3.5 CHANGELOG 闸门 ──────────────────────────────────────────────────────
+/**
+ * 文档里不再写「当前发布是 X」之后，CHANGELOG 就成了人唯一必须写的发布材料，
+ * 于是它也得被核查：版本号归脚本管（`--bump`），「这一版改了什么」归人管，两者
+ * 对不上等于这一版没有记录。工作树闸门要求发布前干净，所以这一节只能在发布前
+ * 提交好——这也正是它必须能自动核对的原因。
+ */
+function checkChangelog() {
+    step('CHANGELOG 闸门');
+
+    const path = join(ROOT, 'CHANGELOG.md');
+    if (!existsSync(path)) fail('CHANGELOG.md 不存在 —— 版本历史是发布材料的一部分');
+
+    const headings = [...readFileSync(path, 'utf8').matchAll(/^##\s+\[?v?(\d+\.\d+\.\d+)\]?/gm)].map((match) => match[1]);
+    if (!headings.includes(PKG_VERSION)) {
+        fail(`CHANGELOG.md 里没有 ${PKG_VERSION} 这一节：\n` +
+            `       发布前把「未发布」改成 \`## [${PKG_VERSION}] - <日期>\` 并提交，\n` +
+            `       否则发出去的版本在变更记录里不存在（已有：${headings.join(', ') || '无'}）`);
+    }
+    ok(`CHANGELOG.md 里有 ${PKG_VERSION} 的条目`);
+}
+
 // ── 4. test ─────────────────────────────────────────────────────────────────
 async function runChecks() {
     step('测试');
@@ -387,12 +418,22 @@ async function checkTarball() {
         args.push('--pack-destination', TARBALL_DIR);
     }
     const packed = await run('npm', args);
-    if (packed.code !== 0) fail(`npm pack 失败:\n${packed.stderr.trim().split('\n').slice(-8).join('\n')}`);
+    if (packed.code !== 0) {
+        // 有些 npm 版本把 pack 的错误写在 stdout 里，只读 stderr 会得到一条空消息。
+        const detail = (packed.stderr.trim() || packed.stdout.trim()).split('\n').slice(-8).join('\n');
+        fail(`npm pack 失败:\n${detail || `（npm pack 没有任何输出，退出码 ${packed.code}）`}`);
+    }
 
-    const at = packed.stdout.indexOf('{');
-    if (at === -1) fail(`npm pack --json 没吐出 JSON:\n${packed.stdout.slice(0, 400)}`);
-    const report = JSON.parse(packed.stdout.slice(at))[PKG_NAME];
-    if (report === undefined) fail('npm pack --json 的报告里没有这个包');
+    // npm 10 及更早吐 { "<name>": {...} }，npm 11 起吐 [{ name, ... }]。以前只
+    // 从第一个 `{` 往后切，碰到数组形状会留下尾部的 `]` 直接 SyntaxError —— 闸门
+    // 因此在 4/6 这一步崩掉，而不是给出「tarball 缺文件」这种可读的结论。
+    // 形状处理与它的测试都在 scripts/pack-report.mjs。
+    let report;
+    try {
+        report = parsePackReport(packed.stdout, PKG_NAME);
+    } catch (error) {
+        fail(error.message);
+    }
 
     const paths = report.files.map((file) => file.path);
     for (const required of REQUIRED_FILES) {
@@ -613,6 +654,7 @@ async function main() {
     checkMetadata();
     await bumpVersion();
     if (opts.bump && dirtyBefore === '') info('（升版造成的改动已交给结尾的 git commit 处理）');
+    checkChangelog();
     await runChecks();
     const tarballPath = await checkTarball();
     const user = await checkRegistry();

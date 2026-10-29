@@ -1,5 +1,7 @@
 # dsh-session-purge
 
+[![npm version](https://img.shields.io/npm/v/dsh-session-purge.svg)](https://www.npmjs.com/package/dsh-session-purge)
+
 [中文](https://github.com/verdana/dsh-session-purge/blob/main/README.md) | [English](./README.en.md)
 
 A **recycle bin** for DeepSeek Harness (DSH) session deletion: deleting no longer
@@ -12,12 +14,8 @@ stays on disk forever. This plugin is about **deletion**, and it splits deletion
 into two jobs: the reversible part (move to the bin) and reclaiming disk space
 (true delete, or automatic clean-up on a retention schedule).
 
-> **Release status**: the current npm / GitHub Release is `0.5.3` (2026-10-21),
-> which shipped the settings-page polish (bin icon, version footer, npm update
-> hint). `main` additionally carries an unreleased batch of failure-path fixes —
-> the restart queue, partial "empty the bin", oversized request bodies, sweep
-> bookkeeping and the cross-volume duplicate — which will reach the npm package
-> with the next release.
+> Versions and per-release changes live in [CHANGELOG.md](./CHANGELOG.md); the latest
+> published version is the badge above.
 
 ## What it does
 
@@ -186,14 +184,19 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 ## Requirements
 
-- DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.2 and
-  0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls, auto-clean,
-  the full move → restore → delete-permanently → sweep round trip, plus (on 0.2.1)
-  the account-menu settings entry and the dev repro scripts against the
-  plugin-style JSONL backend. The menu and sidebar injection for 0.1.7-rc.2 /
-  0.1.5-rc.3 use the same DOM detection and are expected to work, but were not
-  re-verified in this round; 0.1.5-rc.3 has no settings extension point, so the
-  **settings page is unavailable there** — use the HTTP routes above instead.
+- DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.4, 0.2.1-rc.2
+  and 0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls, the full
+  move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
+  account-menu settings entry and the dev repro scripts against the plugin-style
+  JSONL backend. rc.3 was not run separately this round, but it differs from rc.4
+  only in tooltip and logging behavior; none of the contracts this plugin relies on
+  changed anywhere between rc.2 and rc.4 (see
+  [docs/compat-0.2.1-rc.4.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.4.md)).
+  The menu and sidebar
+  injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection and are expected
+  to work, but were not re-verified in this round; 0.1.5-rc.3 has no settings
+  extension point, so the **settings page is unavailable there** — use the HTTP
+  routes above instead.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.
@@ -203,6 +206,7 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 Code layout, testing and release flow:
 [DEVELOPING.md](https://github.com/verdana/dsh-session-purge/blob/main/DEVELOPING.md);
 the product spec and the implementation record (including known limits and future
-enhancements): [docs/recycle-bin/](./docs/recycle-bin/).
+enhancements):
+[docs/recycle-bin/](https://github.com/verdana/dsh-session-purge/tree/main/docs/recycle-bin).
 
 MIT License.

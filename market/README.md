@@ -14,8 +14,8 @@
 `market/` 不在 `package.json` 的 `files` 白名单里，所以这些文件不会进 npm 包。
 
 > 本核对以 2026-10-18 发布的 `v0.5.2` 为准，条目描述指向的能力（移入 / 复原 / 永久删除 /
-> 保留期清理）此后未变。`v0.5.3`（2026-10-21）已把设置页图标、版本页脚与更新提示发布出去；
-> `main` 上另有一轮未发布的失败路径修复。第 4 节的代码行号按当前 `main`（2026-10-24）更新。
+> 保留期清理）此后未变；此后的版本以 [CHANGELOG.md](../CHANGELOG.md) 为准，本文档不重复声明
+> 当前版本。第 4 节的代码行号按 `main`（2026-10-28）复核。
 
 ---
 
@@ -104,7 +104,7 @@ git push -u origin add-verdana-dsh-session-purge
 | 可随时复原 | [lib/index.js:1629](../lib/index.js#L1629) `restoreSession()`，按记录的原始路径回放；入口 [lib/index.js:1980](../lib/index.js#L1980) |
 | 可永久删除 | `Delete permanently` / `Empty the recycle bin` → [lib/index.js:1342](../lib/index.js#L1342) `emptyTrash()` |
 | 按保留期自动清理 | [lib/index.js:856](../lib/index.js#L856-L857) 默认 `autoClean: true` + `retentionDays: 30`；扫描入口 [lib/index.js:1985](../lib/index.js#L1985) `POST /session-purge/sweep` |
-| 设置页 | [client/client.js:79](../client/client.js#L79) 起 `settings.*` 文案；后端 [lib/index.js:1992](../lib/index.js#L1992) |
+| 设置页 | [client/client.js:78](../client/client.js#L78) 起 `settings.*` 文案；后端 [lib/index.js:1992](../lib/index.js#L1992) |
 
 如果评审问「fork 凭什么收录」，`market/PR.md` 里已准备好答案：上游最后推送是 2026-08-24，本仓库按回收站模型重写（面板、复原、保留期、设置页），并且列表里查不到上游条目。
 

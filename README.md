@@ -1,5 +1,7 @@
 # dsh-session-purge
 
+[![npm 最新版本](https://img.shields.io/npm/v/dsh-session-purge.svg)](https://www.npmjs.com/package/dsh-session-purge)
+
 [中文](./README.md) | [English](https://github.com/verdana/dsh-session-purge/blob/main/README.en.md)
 
 给 DeepSeek Harness (DSH) 的会话删除加一个**回收站**：删除不再不可恢复，而是把会话**原样移入
@@ -8,9 +10,7 @@
 上游的「归档」只是把会话从默认列表里藏起来，日志永远留在磁盘上；这个插件管的是**删除**，
 而且把「删掉」和「腾出磁盘」拆成了两件事：前者随时可逆，后者交给按时间的自动清理。
 
-> **版本状态**：当前发布为 npm / GitHub Release `0.5.3`（2026-10-21，含设置页图标、页脚版本号与
-> npm 更新提示）。`main` 上另有尚未发布的一轮失败路径修复（重启队列、清空部分失败、请求体超限、
-> 跳过清理的记账、跨卷重复会话），会在下一次发布中进入 npm 包。
+> 版本与逐版变更见 [CHANGELOG.md](./CHANGELOG.md)；npm 上的最新版本见上方 badge。
 
 ## 功能一览
 
@@ -63,6 +63,7 @@ dsh plugin --profile web remove dsh-session-purge
 - **真实删除**：二次确认后永久删除，不可恢复。
 - **清空回收站**：二次确认（会显示条目数与占用体积）后永久删除全部。
 - 条目超过 50 条时先显示一页，底部给「加载更多」。
+- 条目多到超过一屏时，列表在面板内部滚动，「清空回收站」所在的底栏与策略提示始终留在原位。
 
 ### 设置
 
@@ -144,10 +145,13 @@ registry 不可达时静默跳过，只留下版本号，不影响任何设置�
 
 ## 环境要求
 
-- DSH，`dsh web` 能正常运行。**0.2.1-rc.2 与 0.2.0-rc.2 上已完整实机验证**：回收站面板、
-  设置页的自动清理设置、端到端「移入 → 复原 → 真实删除 → 清扫」，以及 0.2.1 的账号菜单设置
-  入口与 0.2.1 插件式 JSONL 后端下的开发脚本。0.1.7-rc.2 / 0.1.5-rc.3 的菜单与侧边栏注入
-  沿用同一套 DOM 识别，预期可用，但这一轮没有重新实机验证；0.1.5-rc.3 没有设置扩展点，
+- DSH，`dsh web` 能正常运行。**0.2.1-rc.4、0.2.1-rc.2 与 0.2.0-rc.2 上已完整实机验证**：
+  回收站面板、设置页的自动清理设置、端到端「移入 → 复原 → 真实删除 → 清扫」，以及 0.2.1 的
+  账号菜单设置入口与 0.2.1 插件式 JSONL 后端下的开发脚本。rc.3 这一轮没有单独跑，但它与 rc.4
+  只差 tooltip 与日志输出层面；rc.2 → rc.4 之间插件依赖的契约面全程未变（详见
+  [docs/compat-0.2.1-rc.4.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.4.md)）。
+  0.1.7-rc.2 / 0.1.5-rc.3 的菜单与
+  侧边栏注入沿用同一套 DOM 识别，预期可用，但这一轮没有重新实机验证；0.1.5-rc.3 没有设置扩展点，
   **设置页不可用**，此时请用上面的 HTTP 路由读写设置。
 - Node.js `^22.19.0 || >=24`（`package.json` 的 `engines`；实际以 `dsh web` 用的
   那份 Node 为准）。
@@ -158,6 +162,6 @@ registry 不可达时静默跳过，只留下版本号，不影响任何设置�
 代码结构、测试与发布流程见
 [DEVELOPING.md](https://github.com/verdana/dsh-session-purge/blob/main/DEVELOPING.md)；
 产品规格与实现记录（含已知边界与后续增强）见
-[docs/recycle-bin/](./docs/recycle-bin/)。
+[docs/recycle-bin/](https://github.com/verdana/dsh-session-purge/tree/main/docs/recycle-bin)。
 
 MIT License.

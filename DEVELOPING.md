@@ -2,9 +2,9 @@
 
 面向维护者。终端用户请读 [README.md](./README.md)。
 
-当前发布：**0.5.3**（2026-10-21，npm 与 GitHub Release；设置页增强已随该版发布）。
-`main` 上另有尚未发布的一轮失败路径修复（重启队列、清空部分失败、请求体超限、
-跳过清理仍记账、跨卷重复会话），下一次发布时带上（建议 `--bump patch`）。
+**版本记录不写在本文件里**。已发布版本的用户可见变化全部记在 [CHANGELOG.md](./CHANGELOG.md)；
+`main` 上尚未发布的改动记在它的「未发布」一节。文档里不再出现「当前发布是 X」这类陈述——那是最
+容易腐的一种事实，0.5.3 与 0.5.4 两次发布之后都腐了（口径纠正见「发布」一节的纪律）。
 
 ## 代码结构
 
@@ -20,6 +20,7 @@
   浏览器探针（弹窗 / 面板 / 设置页 / 隔离实例端到端）
 - `docs/recycle-bin/` — 回收站的产品规格（spec.md）与技术设计（design.md）
 - `docs/compat-0.2.1-rc.2.md` — DSH 0.2.1 兼容性清查的历史报告（0.5.0 时期，行号与测试数已过时）
+- `docs/compat-0.2.1-rc.4.md` — rc.2 → rc.4 的增量核查与实机验证结论（当前支持面的依据）
 
 ## 本地开发
 
@@ -35,12 +36,13 @@ dsh plugin --profile web add link:<本仓库绝对路径>
 ## 测试
 
 ```sh
-npm test                              # 回归测试（helpers + trash + client-bin 三个套件）
+npm test                              # 回归测试（helpers + trash + client-bin + pack-report 四个套件）
 node tools/repro-delete.mjs           # 端到端：永久删除（真实 JSONL 后端 + 真实日志副本）
 node tools/repro-trash.mjs            # 端到端：移入 → 复原（逐字节）→ 真实删除 → 过期清理
 node tools/smoke-install.mjs ./x.tgz  # 隔离 home 里装包冒烟
 node tools/dialog-render-probe.mjs    # 真实 React + 真实主题渲染确认弹窗与成功 toast，核对配色
-node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态
+node tools/trash-panel-probe.mjs      # 真实 React + 真实主题渲染回收站面板的 7 种状态，
+                                      # 并几何断言「长列表在卡片内滚动、底栏不外溢、滚到底够得着最后一行」
 node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置页并逐个驱动控件（含版本页脚/更新链接）
 ```
 
@@ -127,20 +129,29 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 **版本号归发布脚本管**（`--bump` 会跑 `npm version`、提交、打 tag）。特性提交里
 不要手工改 `package.json` 的 version。参数说明：`node scripts/publish-npm.mjs --help`。
 
-0.5.3 之后 `main` 上还有未发布改动（失败路径修复，全在 `fix(...)` 提交里）；发布前先确认
-工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
+**发布前唯一必须人工写的是 CHANGELOG**：把「未发布」一节改成 `## [x.y.z] - YYYY-MM-DD`，
+版本号要与 `--bump` 得出的结果一致，并补上这版的比较链接。写歪了不用靠自觉——`--bump` 之后
+有一道 **CHANGELOG 闸门**，条目与 `package.json` 的版本对不上就停，并列出已经有哪些版本。
+
+为什么顺序是这样：`--bump` 只改 `package.json`，结尾的 release commit 也只
+`git add package.json LICENSE`；而工作树闸门在流程最前面就要求干净。所以 CHANGELOG **必须
+在发布前单独提交好**——指望发布提交把文档改动带上，它不会带，改了也只会变成孤儿脏文件。
+（这也是为什么文档里不再写「当前发布是 X」：写在那儿就得靠人补，而没人提醒。）
+
+发布前先确认工作树干净，再按需要 `npm run release -- --bump patch --smoke`。
 
 ## 跨版本兼容
 
 浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是主要需要随版本走
 的部分：
 
-| | 0.1.5-rc.3 | 0.1.7-rc.2 | 0.2.1-rc.2 |
+| | 0.1.5-rc.3 | 0.1.7-rc.2 | 0.2.1-rc.2 – rc.4 |
 |---|---|---|---|
 | 菜单项 | 重命名 / 分叉会话 / 归档会话 | 置顶会话 + 上面三项，后面可能还有插件行 | 在 0.1.7 基础上，归档后多了「复制 Session ID / Copy Session ID」 |
 | 按钮文本 | 纯标签 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`） | 同 0.1.7；「复制 Session ID」没有绑定，因而没有键帽 |
 | 行组件 props | `onFork` / `onArchive` | 已移除（动作走 slot）；`onOpen` / `onRenameRequest` 仍在 | 同 0.1.7 |
 | 设置入口 | 侧栏「设置」按钮 | 侧栏「设置」按钮 | **账号菜单（账号菜单 → 设置）**：`settings.launcher` 被账号菜单占用，不再有独立的「设置」按钮 |
+| 侧栏面板 | — | — | rc.3 起「插件 / 自动化任务 / 更多」成为侧栏面板行（`sidebar.panellist`）；插件的垃圾桶图标挂在**工作区行**的 `.headerActions` 上，与这些面板行互不影响 |
 
 插件按「内置三项作为有序子序列」识别菜单（不要求恰好三项），按 `aria-hidden` 过滤
 键帽，把「删除会话」插在「归档会话」之后。多出来的置顶行、插件行和 0.2.1 的
